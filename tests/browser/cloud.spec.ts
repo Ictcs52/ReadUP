@@ -131,7 +131,7 @@ test('teacher reports require approved login and a selected learner on desktop a
     await expect(page.getByRole('heading',{name:'รายงานผู้เรียน',exact:true})).toHaveCount(0);
   }
   await page.setViewportSize({width:1440,height:1000}); await login(page);
-  await expect(page.getByRole('heading',{name:'เพิ่มผู้เรียน',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
   await expect(page.getByRole('heading',{name:'ผู้เรียน',exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'รายงานผู้เรียน',exact:true})).toBeEnabled();
@@ -209,11 +209,13 @@ test('profiles isolate local drafts, creating a student works, and failed writes
   await expect(page.getByRole('button', { name: 'เริ่มฝึกวันนี้', exact: true })).toBeVisible();
   await expect(page.locator('.stat-number').filter({ hasText: '0 ดวง' })).toBeVisible();
   await openAccount(page);
+  await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();
   await page.getByLabel('เลขประจำตัว (4 หลัก)', { exact: true }).fill('0003');
   await page.getByLabel('ชื่อ–สกุล', { exact: true }).fill('นักอ่านสาม');
   await page.getByLabel('ชั้น',{exact:true}).fill('ป.2/1');
-  await page.getByRole('button', { name: 'เพิ่มผู้เรียน', exact: true }).click();
+  await page.getByRole('button', { name: 'บันทึกผู้เรียน', exact: true }).click();
   await expect(page.getByRole('button', { name: 'เลือกผู้เรียน นักอ่านสาม' })).toBeVisible();
+  await page.getByRole('button',{name:'ล้างตัวกรอง',exact:true}).click();
   await page.getByRole('button', { name: 'เลือกผู้เรียน นักอ่านหนึ่ง', exact: true }).click();
   await expect(page.getByRole('button', { name: 'ฝึกต่อจากครั้งก่อน', exact: true })).toBeVisible();
   await page.reload();
@@ -293,7 +295,7 @@ test('teacher management fits a mobile screen and has no automated accessibility
   const backend = mockBackend(); await backend.install(context);
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
-  await expect(page.getByRole('heading', { name: 'เพิ่มผู้เรียน', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'เพิ่มผู้เรียน', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/teacher-mobile.png', fullPage: true });
   await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
@@ -311,16 +313,19 @@ async function studentLogin(page: Page, code = '1234567890') {
 
 test('teacher registration displays credentials once and can reset or suspend a student account', async ({page,context}) => {
   const backend=mockBackend();await backend.install(context);await login(page);
+  await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();
   await page.getByLabel('เลขประจำตัว (4 หลัก)', {exact:true}).fill('0003');
   await page.getByLabel('ชื่อ–สกุล', {exact:true}).fill('นักอ่านสาม');
   await page.getByLabel('ชั้น',{exact:true}).fill('ป.2/1');
-  await page.getByRole('button', {name:'เพิ่มผู้เรียน', exact:true}).click();
+  await page.getByRole('button', {name:'บันทึกผู้เรียน', exact:true}).click();
   await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('0003');
   await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('RT-0003');
   await page.getByRole('button',{name:'เก็บรหัสแล้ว ปิดส่วนนี้',exact:true}).click();
   await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toHaveCount(0);
-  const card=page.locator('.student-card').filter({hasText:'นักอ่านสาม'});
-  await expect(card).toContainText('เลขประจำตัว 0003 · ป.2/1');
+  const card=page.locator('.roster-row').filter({hasText:'นักอ่านสาม'});
+  await expect(card).toContainText('เลขประจำตัว 0003');
+  await expect(card).toContainText('ป.2/1');
+  await card.getByRole('button',{name:'จัดการบัญชี นักอ่านสาม',exact:true}).click();
   expect(backend.students.find(s=>s.code==='0003')?.class_name).toBe('ป.2/1');
   page.once('dialog',dialog=>dialog.accept());await card.getByRole('button',{name:'คืนรหัสผ่านเริ่มต้น',exact:true}).click();
   await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toBeVisible();
@@ -540,5 +545,73 @@ test('teacher report without learners offers a route to registration',async({pag
  const backend=mockBackend();backend.students.splice(0);await backend.install(context);await login(page);
  await page.getByRole('button',{name:'รายงานผู้เรียน',exact:true}).click();
  await expect(page.getByRole('heading',{name:'ยังไม่มีผู้เรียนในความดูแล',exact:true})).toBeVisible();
- await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();await expect(page.getByRole('heading',{name:'เพิ่มผู้เรียน',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();await expect(page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true})).toBeVisible();
+});
+
+test('large teacher roster searches and combines filters across pages on desktop and mobile',async({page,context})=>{
+ const backend=mockBackend();
+ for(let i=3;i<=125;i++)backend.students.push({id:`roster-${i}`,teacher_id:owner,auth_user_id:`learner-${i}`,login_id:String(i).padStart(4,'0'),login_enabled:i%3!==0,class_name:i%2===0?'ป.2/1':'ป.3/2',code:String(i).padStart(4,'0'),display_name:`ผู้เรียนทดสอบ ${i}`,created_at:'2026-10-06T00:00:00Z'});
+ // Include a legacy account without a class or independent login.
+ backend.students[backend.students.length-1].login_id='';backend.students[backend.students.length-1].class_name='';
+ await backend.install(context);await login(page);
+ const roster=page.getByRole('region',{name:'ผู้เรียนของฉัน 125 คน',exact:true});
+ await expect(roster).toBeVisible();await expect(roster.locator('.roster-row')).toHaveCount(10);
+ await expect(page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true})).toHaveCount(0);
+ await expect(roster.getByRole('status')).toContainText('แสดง 1–10');
+ await roster.getByRole('button',{name:'รายชื่อหน้าถัดไป',exact:true}).click();
+ await expect(roster.getByRole('status')).toContainText('แสดง 11–20');
+ await expect(roster.locator('.roster-row').first()).toContainText('0013');
+ await roster.getByLabel('ค้นหาผู้เรียน',{exact:true}).fill('  0123  ');
+ await expect(roster.locator('.roster-row')).toHaveCount(1);await expect(roster.locator('.roster-row')).toContainText('ผู้เรียนทดสอบ 123');
+ await expect(roster.getByRole('status')).toContainText('พบ 1 จาก 125 คน');
+ await roster.getByRole('button',{name:'ล้างตัวกรอง',exact:true}).click();
+ await roster.getByLabel('ชั้นเรียน',{exact:true}).selectOption('ป.2/1');
+ await roster.getByLabel('สถานะบัญชี',{exact:true}).selectOption('paused');
+ await expect(roster.getByRole('status')).toContainText('พบ 20 จาก 125 คน');
+ await expect(roster.locator('.roster-row')).toHaveCount(10);
+ for(const row of await roster.locator('.roster-row').all()){await expect(row).toContainText('ป.2/1');await expect(row.locator('.roster-status')).toHaveText('พักบัญชี');}
+ await roster.getByLabel('ค้นหาผู้เรียน',{exact:true}).fill('ไม่มีชื่อในระบบ');
+ await expect(roster.getByRole('heading',{name:'ไม่พบผู้เรียนที่ตรงกับตัวกรอง',exact:true})).toBeVisible();
+ await expect(roster.locator('.roster-row')).toHaveCount(0);
+ await roster.getByRole('button',{name:'ล้างตัวกรอง',exact:true}).click();
+ await roster.getByLabel('แสดงต่อหน้า',{exact:true}).selectOption('50');await expect(roster.locator('.roster-row')).toHaveCount(50);
+ await roster.getByRole('button',{name:'รายชื่อหน้าถัดไป',exact:true}).click();await roster.getByRole('button',{name:'รายชื่อหน้าถัดไป',exact:true}).click();
+ await expect(roster.locator('.roster-row')).toHaveCount(25);await expect(roster.getByRole('button',{name:'รายชื่อหน้าถัดไป',exact:true})).toBeDisabled();
+ await roster.getByLabel('สถานะบัญชี',{exact:true}).selectOption('unregistered');await expect(roster.locator('.roster-row')).toHaveCount(1);
+ await roster.getByLabel('ชั้นเรียน',{exact:true}).selectOption('__none__');await expect(roster.locator('.roster-row')).toContainText('0125');
+ await roster.getByRole('button',{name:'ล้างตัวกรอง',exact:true}).click();
+ await roster.getByLabel('แสดงต่อหน้า',{exact:true}).selectOption('10');
+ for(const width of [1440,768,390,320]){
+  await page.setViewportSize({width,height:900});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await expect(roster.getByLabel('ค้นหาผู้เรียน',{exact:true})).toBeVisible();
+  await expect(roster.locator('.roster-row')).toHaveCount(10);
+ }
+ await page.screenshot({path:'test-results/teacher-roster-mobile.png',fullPage:true});
+ await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+ const violations=await page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>({id:v.id,targets:v.nodes.map((n:any)=>n.target)})));
+ expect(violations).toEqual([]);
+ await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'test-results/teacher-roster-desktop.png',fullPage:true});
+});
+
+test('compact registration closes on success and keeps fields for a retry after an error',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);await login(page);
+ await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();
+ await expect(page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true})).toBeFocused();
+ await page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true}).fill('0003');
+ await page.getByLabel('ชื่อ–สกุล',{exact:true}).fill('นักอ่านสาม');await page.getByLabel('ชั้น',{exact:true}).fill('ป.2/1');
+ let fail=true;
+ await context.route('**/functions/v1/readtech-student-accounts',async route=>{if(fail)return route.fulfill({status:409,json:{error:'เลขประจำตัวนี้มีบัญชีแล้ว'}});return route.fallback();});
+ await page.getByRole('button',{name:'บันทึกผู้เรียน',exact:true}).click();
+ await expect(page.getByRole('alert')).toContainText('เลขประจำตัวนี้มีบัญชีแล้ว');
+ await expect(page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true})).toHaveValue('0003');
+ fail=false;await page.getByRole('button',{name:'บันทึกผู้เรียน',exact:true}).click();
+ await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('RT-0003');
+ await expect(page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('ค้นหาผู้เรียน',{exact:true})).toHaveValue('0003');
+ await expect(page.locator('.roster-row')).toHaveCount(1);
+ await expect(page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true})).toBeFocused();
+ await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();
+ await expect(page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true})).toHaveValue('');
+ await page.getByRole('button',{name:'ยกเลิก',exact:true}).click();await expect(page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true})).toHaveCount(0);
 });

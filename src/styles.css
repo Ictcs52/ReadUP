@@ -214,3 +214,88 @@ dialog { width: min(500px,calc(100% - 32px)); border: 1px solid #efd7e3; border-
 
 .password-reset-dialog { max-width:480px; }.password-reset-dialog>p { color:#76586a; font-size:14px; margin-bottom:22px; }.password-reset-dialog .cloud-form { margin:0; }.reset-success { margin:0; padding:15px; border-radius:12px; background:#edf7f1; color:#315b43; font-size:14px; }
 .report-learner-picker { display:grid; gap:8px; margin-bottom:25px; max-width:560px; }.report-learner-picker label { font-size:14px; font-weight:600; color:#76586a; }.report-learner-picker select { width:100%; min-width:0; min-height:48px; border:1px solid #e5c7d6; border-radius:12px; padding:10px 12px; background:white; color:#593d4f; font:inherit; font-size:14px; }
+
+/* Compact teacher roster */
+.teacher-account.teacher-account-compact { flex-direction:row; align-items:center; padding:12px 16px; margin:12px 0 18px; border-radius:13px; background:#fff; gap:10px; }
+.teacher-account-compact>div:first-child { min-width:0; }
+.teacher-account-compact strong { font-size:15px; }
+.teacher-account-compact span { margin-top:2px; font-size:12px; }
+.teacher-account-compact .secondary,.roster-panel .primary,.roster-panel .secondary { min-height:44px; padding:9px 13px; font-size:13px; border-radius:10px; }
+.teacher-account-compact .text-button { font-size:12px; }
+.roster-panel { padding:22px; border-radius:18px; }
+.roster-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; }
+.roster-heading h2 { font-size:19px; margin:0; display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+.roster-heading .pill { font-size:12px; padding:4px 10px; }
+.roster-heading p { margin:5px 0 0; font-size:13px; }
+.roster-heading>.primary { flex-shrink:0; }
+.roster-filters { display:grid; grid-template-columns:minmax(180px,1fr) minmax(110px,.42fr) minmax(140px,.5fr); gap:12px; }
+.roster-filters label { display:grid; gap:6px; font-size:12px; color:#594351; min-width:0; }
+.roster-filters input,.roster-filters select,.roster-footer select { width:100%; min-width:0; min-height:44px; padding:10px 12px; border:1px solid #d8beca; border-radius:10px; background:#fffafd; color:#352735; font-size:13px; }
+.roster-result { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; min-height:54px; }
+.roster-result p { margin:0; font-size:12px; }
+.roster-result .text-button { font-size:12px; min-height:44px; }
+.roster-columns,.roster-row { display:grid; grid-template-columns:minmax(0,1fr) 90px 115px 200px; align-items:center; gap:12px; }
+.roster-columns { padding:10px 14px; background:#fcf6f9; border-top:1px solid var(--line); border-bottom:1px solid var(--line); font-size:12px; color:#756370; }
+.roster-columns>span:last-child { text-align:right; }
+.roster-row { padding:13px 14px; min-height:76px; border-bottom:1px solid var(--line); }
+.roster-row.selected { background:#fff2f7; box-shadow:inset 3px 0 #9d174d; }
+.roster-identity { min-width:0; }
+.roster-identity h3 { margin:0; font-size:14px; font-weight:600; overflow-wrap:anywhere; }
+.roster-identity small { display:block; font-size:11px; line-height:1.8; color:#756370; overflow-wrap:anywhere; }
+.roster-identity .roster-selected { color:#9d174d; }
+.roster-class { font-size:12px; overflow-wrap:anywhere; }
+.roster-status { justify-self:start; font-size:11px; border-radius:7px; padding:4px 8px; line-height:1.7; background:#f3f0f2; color:#665661; }
+.roster-status.ready { background:#edf7f0; color:#285f3c; }
+.roster-status.paused { background:#fff0e8; color:#85401d; }
+.roster-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+.roster-actions .text-button { min-height:44px; padding:6px; font-size:12px; }
+.roster-manage-actions { grid-column:1/-1; display:flex; align-items:center; flex-wrap:wrap; gap:8px 20px; padding:8px 12px; background:#fcf6f9; border-radius:10px; }
+.roster-manage-actions>span { font-size:12px; color:#594351; }
+.roster-manage-actions .text-button { min-height:44px; font-size:12px; }
+.roster-empty { padding:32px 12px; text-align:center; border-block:1px solid var(--line); }
+.roster-empty svg { color:var(--pink); }
+.roster-empty h3 { font-size:16px; margin:8px 0 5px; }
+.roster-empty p { font-size:13px; margin:0; }
+.roster-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding-top:16px; }
+.roster-footer>label { display:flex; align-items:center; gap:10px; font-size:12px; }
+.roster-footer select { width:auto; }
+.roster-footer nav { display:flex; align-items:center; gap:12px; }
+.roster-footer nav span { font-size:12px; }
+.roster-footer nav .secondary { padding:9px; min-width:44px; }
+.roster-registration { padding:18px; border:1px solid #e8ccd8; background:#fff8fb; border-radius:13px; margin-bottom:20px; }
+.roster-registration h3 { font-size:16px; }
+.roster-registration>p { margin:5px 0 15px; font-size:13px; }
+.roster-registration-form { max-width:none; grid-template-columns:150px minmax(180px,1fr) minmax(100px,.4fr); gap:12px; }
+.roster-registration-form label { gap:6px; font-size:12px; }
+.roster-registration-form input { min-height:44px; padding:10px 12px; font-size:13px; border-radius:10px; }
+.roster-registration-form .registration-hint { grid-column:1/-1; margin:0; font-size:12px; }
+.roster-registration-form .cloud-actions { grid-column:1/-1; }
+.roster-registration-form .text-button { min-height:44px; font-size:13px; }
+@media(max-width:1150px) { .roster-columns,.roster-row { grid-template-columns:minmax(0,1fr) 70px 105px 180px; gap:8px; }.roster-actions .secondary { padding:9px; font-size:12px; gap:6px; } }
+@media(max-width:800px) {
+  .roster-panel { padding:16px; }
+  .roster-columns { display:none; }
+  .roster-row { grid-template-columns:minmax(0,1fr) auto; gap:7px 12px; padding:14px 10px; }
+  .roster-identity { grid-column:1; grid-row:1; }
+  .roster-class { grid-column:1; grid-row:2; color:#756370; }
+  .roster-status { grid-column:2; grid-row:1; justify-self:end; }
+  .roster-actions { grid-column:2; grid-row:2; }
+  .roster-manage-actions { margin-top:4px; }
+  .roster-registration-form { grid-template-columns:1fr 1fr; }
+  .roster-registration-form>label:nth-child(2) { grid-column:1/-1; grid-row:2; }
+}
+@media(max-width:500px) {
+  .roster-heading { align-items:flex-start; }
+  .roster-heading h2 { font-size:17px; gap:6px; }
+  .roster-heading p { font-size:12px; }
+  .roster-heading>.primary { padding:8px 10px; font-size:12px; gap:5px; }
+  .roster-filters { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+  .roster-search { grid-column:1/-1; }
+  .roster-actions { grid-column:1/-1; grid-row:3; justify-content:flex-start; margin-top:2px; }
+  .roster-footer { justify-content:center; }
+  .roster-footer>label { margin-right:auto; }
+  .roster-footer nav { margin-left:auto; gap:8px; }
+  .roster-registration { padding:14px 12px; }
+  .teacher-account.teacher-account-compact { gap:8px; }
+  .teacher-account-compact .cloud-actions { gap:8px; }
+}
