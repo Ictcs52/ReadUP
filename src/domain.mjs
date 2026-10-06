@@ -35,13 +35,14 @@ export function csvCell(value) {
   return '"' + s.replaceAll('"', '""') + '"';
 }
 
-export function exportCsv(sessions, lessons) {
+/** @param {{code: string, display_name: string} | null} [student] */
+export function exportCsv(sessions, lessons, student = null) {
   const labels = { independent: 'ทำได้เองครั้งแรก', retried: 'ทำได้หลังลองใหม่โดยไม่ใช้ตัวช่วย', assisted: 'ทำได้หลังช่วย', skipped: 'ข้ามเพื่อฝึกภายหลัง' };
-  const rows = [['รหัสรอบฝึก','วันที่','บทเรียน','คำตัวอย่าง','ประเภทกิจกรรม','ผลกิจกรรม','ลองตอบไม่ตรงกี่ครั้ง','ระดับตัวช่วย','เวลาฝึกข้อนี้ (วินาที)','สถานะรอบ','สมาธิ (ครูสังเกต)','การอ่าน (ครูประเมิน)','หมายเหตุ']];
+  const rows = [['รหัสผู้เรียน','ชื่อเรียกผู้เรียน','รหัสรอบฝึก','วันที่','บทเรียน','คำตัวอย่าง','ประเภทกิจกรรม','ผลกิจกรรม','ลองตอบไม่ตรงกี่ครั้ง','ระดับตัวช่วย','เวลาฝึกข้อนี้ (วินาที)','สถานะรอบ','สมาธิ (ครูสังเกต)','การอ่าน (ครูประเมิน)','หมายเหตุ']];
   for (const session of sessions) {
     const lesson = lessons.find(l => l.id === session.lessonId);
     for (const r of session.records) {
-      rows.push([session.id, new Date(session.startedAt).toLocaleString('th-TH'), lesson?.title ?? session.lessonId, r.word, lesson?.mode, labels[r.category], r.wrongAttempts, r.hintLevel, Math.round(r.activeMs / 1000), session.status, session.observation?.attention ?? 'ยังไม่ได้สังเกต', session.observation?.reading ?? 'ยังไม่ได้ประเมิน', session.observation?.note ?? '']);
+      rows.push([student?.code ?? '', student?.display_name ?? '', session.id, new Date(session.startedAt).toLocaleString('th-TH'), lesson?.title ?? session.lessonId, r.word, lesson?.mode, labels[r.category], r.wrongAttempts, r.hintLevel, Math.round(r.activeMs / 1000), session.status, session.observation?.attention ?? 'ยังไม่ได้สังเกต', session.observation?.reading ?? 'ยังไม่ได้ประเมิน', session.observation?.note ?? '']);
     }
   }
   return '\uFEFF' + rows.map(row => row.map(csvCell).join(',')).join('\r\n');

@@ -8,6 +8,8 @@ export type Session = {
   status: 'active' | 'complete' | 'ended'; questionIndices: number[]; index: number;
   records: RecordResult[]; wrongAttempts: number; hintLevel: number; currentMs: number;
   answered: boolean; observation?: Observation;
+  contentVersion?: number; localRevision?: number; cloudRevision?: number;
+  syncedLocalRevision?: number; syncConflict?: boolean;
 };
 export type Settings = { largeText: boolean; sound: boolean; effectsSound: boolean; slow: boolean; calm: boolean; voiceURI: string; speechRate: number; recordedFirst: boolean };
 export type AppData = { version: 1; sessions: Session[]; settings: Settings };

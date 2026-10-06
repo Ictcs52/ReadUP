@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import curriculum from './data/lessons.json';
-import { defaultData, loadData, saveData } from './storage';
+import { defaultData } from './storage';
 import { exportCsv, orderedOptions, percent, resultCategory, reviewItems, summarize } from './domain.mjs';
-import type { AppData, Lesson, Observation, Session } from './types';
+import type { Lesson, Observation, Session } from './types';
+import { useCloudAccount } from './useCloudAccount';
+import { markChanged, useLearningStore } from './useLearningStore';
+import { TeacherPanel } from './components/TeacherPanel';
 import { Icon } from './components/Icon';
 import { BookFriend, Illustration } from './components/Art';
 import { AnswerStars } from './components/AnswerStars';
@@ -11,12 +14,13 @@ import { disposeFeedbackSound, playFeedbackSound, stopFeedbackSound } from './fe
 import { playLessonAudio, recordingCount, stopLessonAudio, thaiVoices } from './learningAudio';
 
 const lessons = curriculum.lessons as Lesson[];
-type Page = 'home' | 'lessons' | 'rewards' | 'report' | 'settings' | 'about' | 'exercise' | 'result';
+type Page = 'home' | 'lessons' | 'rewards' | 'report' | 'settings' | 'about' | 'exercise' | 'result' | 'account';
 const nav = [
   { id: 'home', text: 'หน้าหลัก', icon: 'home' },
   { id: 'lessons', text: 'บทเรียนของฉัน', icon: 'book' },
   { id: 'rewards', text: 'รางวัลของฉัน', icon: 'star' },
-  { id: 'report', text: 'สำหรับครู', icon: 'chart' }
+  { id: 'report', text: 'สำหรับครู', icon: 'chart' },
+  { id: 'account', text: 'ผู้เรียน', icon: 'shield' }
 ] as const;
 
 function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
@@ -29,15 +33,17 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
 }
 
 export default function App() {
-  const [data, setData] = useState<AppData>(structuredClone(defaultData));
-  const [loaded, setLoaded] = useState(false);
-  const [storageMessage, setStorageMessage] = useState('');
+  const account = useCloudAccount();
+  const store = useLearningStore(account);
+  const { data, setData, loaded, storageMessage, setStorageMessage } = store;
   const [page, setPage] = useState<Page>('home');
   const [level, setLevel] = useState(1);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [pause, setPause] = useState(false);
   const [confirmStart, setConfirmStart] = useState<{ id: number; indices?: number[] } | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmRefresh, setConfirmRefresh] = useState(false);
   const [audioMessage, setAudioMessage] = useState('');
   const [chosen, setChosen] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
@@ -57,7 +63,6 @@ export default function App() {
   const completedLessons = new Set(completed.map(s => s.lessonId));
 
   useEffect(() => {
-    loadData().then(setData).catch(() => setStorageMessage('เครื่องนี้บันทึกถาวรไม่ได้ ผลจะอยู่เฉพาะช่วงที่เปิดหน้านี้ กรุณาส่งออกผลก่อนปิด')).finally(() => setLoaded(true));
     const change = () => { setVisible(!document.hidden); if (document.hidden) { stopFeedbackSound(); stopLessonAudio(); } };
     document.addEventListener('visibilitychange', change);
     const refreshVoices = () => setVoices(thaiVoices());
@@ -67,9 +72,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!loaded) return;
-    saveData(data).catch(() => setStorageMessage('ยังบันทึกลงเครื่องไม่ได้ กรุณาส่งออกผลก่อนปิดหน้านี้'));
-  }, [data, loaded]);
+    setSessionId(null); setSelectedReport(null); setPause(false); setConfirmReset(false);
+    setConfirmStart(null); setConfirmRefresh(false); setConfirmLogout(false);
+    stopLessonAudio(); setPage(p => p === 'account' ? 'account' : 'home');
+  }, [store.scope]);
+
+  useEffect(() => { if (account.recovery) setPage('account'); }, [account.recovery]);
 
   useEffect(() => {
     setChosen(null); setFeedback(''); setAudioMessage(''); setCelebrating(false);
@@ -109,14 +117,14 @@ export default function App() {
     if (target && !target.disabled) playFeedbackSound('click');
   }
   function updateSession(fn: (s: Session) => Session) {
-    setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === sessionId ? fn(s) : s) }));
+    setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === sessionId ? markChanged(fn(s)) : s) }));
   }
   function start(id: number, indices?: number[], approved = false) {
     if (active && active.lessonId === id && !indices && !approved) { setSessionId(active.id); go('exercise'); return; }
     if (active && !approved) { setConfirmStart({ id, indices }); return; }
     const target = lessons.find(l => l.id === id)!;
-    const session: Session = { id: crypto.randomUUID(), lessonId: id, startedAt: Date.now(), status: 'active', questionIndices: indices ?? target.questions.map((_, i) => i), index: 0, records: [], wrongAttempts: 0, hintLevel: 0, currentMs: 0, answered: false };
-    setData(d => ({ ...d, sessions: [...d.sessions.map(s => s.status === 'active' ? { ...s, status: 'ended' as const, endedAt: Date.now() } : s), session] }));
+    const session: Session = { id: crypto.randomUUID(), lessonId: id, contentVersion: 1, localRevision: 1, startedAt: Date.now(), status: 'active', questionIndices: indices ?? target.questions.map((_, i) => i), index: 0, records: [], wrongAttempts: 0, hintLevel: 0, currentMs: 0, answered: false };
+    setData(d => ({ ...d, sessions: [...d.sessions.map(s => s.status === 'active' ? markChanged({ ...s, status: 'ended' as const, endedAt: Date.now() }) : s), session] }));
     setSessionId(session.id); setConfirmStart(null); go('exercise');
   }
   function answer(value: string) {
@@ -152,12 +160,21 @@ export default function App() {
     if (hint === 2 && data.settings.sound) playLessonAudio(question.speech, data.settings, setAudioMessage);
   }
   function exportResults() {
-    const blob = new Blob([exportCsv(data.sessions, lessons)], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ReadTech-results.csv';
+    const blob = new Blob([exportCsv(data.sessions, lessons, account.student)], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = account.student ? `ReadTech-${account.student.code}-results.csv` : 'ReadTech-results.csv';
     a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   function observe(id: string, field: keyof Observation, value: string) {
-    setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === id ? { ...s, observation: { attention: 'ยังไม่ได้สังเกต', reading: 'ยังไม่ได้ประเมิน', note: '', ...s.observation, [field]: value } } : s) }));
+    setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === id ? markChanged({ ...s, observation: { attention: 'ยังไม่ได้สังเกต', reading: 'ยังไม่ได้ประเมิน', note: '', ...s.observation, [field]: value } }) : s) }));
+  }
+
+  async function logout() {
+    try { await account.signOut(); setConfirmLogout(false); }
+    catch (error) { setStorageMessage((error as Error).message); }
+  }
+  async function refreshCloud(replaceDrafts = false) {
+    try { await store.refreshCloud(replaceDrafts); setConfirmRefresh(false); }
+    catch { setStorageMessage('ยังโหลดผลล่าสุดไม่ได้ ผลในเครื่องยังอยู่ กรุณาลองอีกครั้ง'); }
   }
 
   if (!loaded) return <div className="loading"><BookFriend /><p>กำลังเตรียมพื้นที่ฝึกอ่าน…</p></div>;
@@ -185,10 +202,12 @@ export default function App() {
     <div className={'workspace ' + (page === 'exercise' ? 'focused' : '')}>
       <header className="topbar">
         <div className="topbar-title">{page === 'exercise' ? <button className="text-button" onClick={() => setPause(true)}><Icon name="back" />พัก / กลับหน้าหลัก</button> : <><span className="mobile-brand">ReadTech</span><span className="desktop-kicker">ฝึกทีละคำ พัฒนาไปทีละขั้น</span></>}</div>
-        <div className="topbar-right"><span className="local-badge"><Icon name="shield" size={16}/>ข้อมูลอยู่ในเครื่องนี้</span><button className="settings-button" aria-label="ปรับการใช้งาน" onClick={() => page === 'exercise' ? setPause(true) : go('settings')}><Icon name={page === 'exercise' ? 'pause' : 'settings'} /></button><span className="avatar" aria-hidden="true">ร</span></div>
+        <div className="topbar-right">{store.cloud ? <><button className="learner-chip" onClick={()=>go('account')}><Icon name="shield" size={16}/>{account.student!.display_name}</button><span className="local-badge">{store.syncing?'กำลังส่งผล…':store.pending?`รอส่ง ${store.pending} รอบ`:store.syncMessage?'ยังโหลดผลกลางไม่ได้':data.sessions.length?'บันทึกกลางแล้ว':'พร้อมบันทึกกลาง'}</span></> : <span className="local-badge"><Icon name="shield" size={16}/>โหมดทดลอง · ข้อมูลอยู่ในเครื่องนี้</span>}<button className="settings-button" aria-label="ปรับการใช้งาน" onClick={() => page === 'exercise' ? setPause(true) : go('settings')}><Icon name={page === 'exercise' ? 'pause' : 'settings'} /></button><span className="avatar" aria-hidden="true">ร</span></div>
       </header>
       {storageMessage && <div className="storage-warning" role="alert"><Icon name="info" /><span>{storageMessage}</span><button className="text-button" onClick={exportResults}>ส่งออกผล</button></div>}
+      {store.cloud && store.syncMessage && <div className="storage-warning" role="status"><Icon name="info"/><span>{store.syncMessage}</span><button className="text-button" onClick={()=>go('account')}>จัดการผล</button></div>}
       <main id="main" ref={mainRef}>
+        {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{account.selectStudent(s);go('home');}} onLogout={()=>store.cloud && store.pending ? setConfirmLogout(true) : void logout()} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
         {page === 'home' && <>
           <div className="page-heading"><div><span className="eyebrow pink">เพื่อนฝึกอ่านของเธอ</span><h1 tabIndex={-1}>สวัสดี นักอ่านคนเก่ง <span className="hello-spark" aria-hidden="true">✦</span></h1><p>วันนี้มาค่อย ๆ เรียนรู้ไปด้วยกันนะ</p></div><span className="pill"><span className="status-dot"/>พร้อมเริ่มต้นเสมอ</span></div>
           <section className="hero" aria-labelledby="hero-title">
@@ -241,12 +260,12 @@ export default function App() {
         </>}
 
         {page === 'report' && <>
-          <div className="page-heading"><div><span className="eyebrow pink">ติดตามกิจกรรม ไม่ตัดสินผู้เรียน</span><h1 tabIndex={-1}>พื้นที่สำหรับครู</h1><p>ผลของผู้เรียนคนเดียวที่ฝึกบนเครื่องนี้</p></div><button className="secondary" disabled={!data.sessions.some(s=>s.records.length)} onClick={exportResults}><Icon name="download"/>ส่งออก CSV</button></div>
-          <div className="notice"><Icon name="shield"/><div><strong>รุ่นทดลอง · ไม่มีบัญชีครูหรือฐานข้อมูลกลาง</strong><p>ผลอยู่ในเบราว์เซอร์นี้เท่านั้น ผู้ใช้เครื่องนี้เปิดดูได้ ไม่ควรใช้เครื่องเดียวสลับเด็กหลายคนโดยไม่ส่งออกและล้างผลก่อน คะแนนกิจกรรมไม่ยืนยันว่าอ่านออกเสียงได้</p></div></div>
+          <div className="page-heading"><div><span className="eyebrow pink">ติดตามกิจกรรม ไม่ตัดสินผู้เรียน</span><h1 tabIndex={-1}>พื้นที่สำหรับครู</h1><p>{store.cloud?`ติดตามความก้าวหน้าของ ${account.student!.display_name}`:'ผลจากการทดลองบนเครื่องนี้'}</p></div><button className="secondary" disabled={!data.sessions.some(s=>s.records.length)} onClick={exportResults}><Icon name="download"/>ส่งออก CSV</button></div>
+          <div className="notice"><Icon name="shield"/><div><strong>{store.cloud?`รายงานของ ${account.student!.display_name} · ${account.student!.code}`:'โหมดทดลอง · ผลเฉพาะในเครื่องนี้'}</strong><p>{store.cloud?'ผลแยกตามผู้เรียนและบัญชีครู ตรวจสถานะรอส่งก่อนเปลี่ยนเครื่องได้ในหน้าผู้เรียน':'ใช้หน้าผู้เรียนเพื่อเข้าสู่ระบบครูและเลือกผู้เรียน หากทดลองโดยไม่เชื่อมฐานข้อมูล ผลจะอยู่ในเบราว์เซอร์นี้'} คะแนนกิจกรรมแยกจากการประเมินอ่านออกเสียงของครู</p></div></div>
           <div className="report-stats">{[{label:'ทำได้เองครั้งแรก',value:total.independent},{label:'ทำได้หลังลองใหม่',value:total.retried},{label:'ทำได้หลังช่วย',value:total.assisted},{label:'เก็บไว้ฝึกภายหลัง',value:total.skipped}].map(x=><div className="report-stat" key={x.label}><strong>{x.value}<small> ข้อ</small></strong><span>{x.label}</span></div>)}</div>
           <p className="fine-print">จากกิจกรรมที่บันทึก {total.total} ข้อ · ทำได้เองครั้งแรก {percent(total.independent,total.total)}% · ไม่รวมข้อที่ยังไม่ได้ทำในรอบที่ค้างอยู่</p>
           {!data.sessions.length ? <section className="empty-state"><Icon name="chart" size={48}/><h2>ยังไม่มีผลการฝึก</h2><p>เมื่อทำกิจกรรม ผลจะปรากฏที่นี่</p><button className="primary" onClick={()=>start(1)}>ทดลองบทเรียนแรก<Icon name="arrow"/></button></section> : <>
-            <div className="report-table-wrap"><table><caption>รอบการฝึกในเครื่องนี้</caption><thead><tr><th>บทเรียน / วันที่</th><th>ทำแล้ว</th><th>เองครั้งแรก</th><th>หลังลองใหม่</th><th>หลังช่วย</th><th>สถานะ</th><th>รายละเอียด</th></tr></thead><tbody>{[...data.sessions].reverse().map(s=>{const counts=summarize(s.records);return <tr key={s.id}><td><strong>{lessons.find(l=>l.id===s.lessonId)?.title}</strong><small>{new Date(s.startedAt).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'})}</small></td><td>{s.records.length}/{s.questionIndices.length}</td><td>{counts.independent}</td><td>{counts.retried}</td><td>{counts.assisted}</td><td><span className="table-pill">{s.status==='complete'?'ครบกิจกรรม':s.status==='active'?'ฝึกต่อได้':'จบรอบก่อนครบ'}</span></td><td><button className="text-button" onClick={()=>setSelectedReport(selectedReport===s.id?null:s.id)} aria-expanded={selectedReport===s.id}>ดูผล<Icon name="arrow" size={16}/></button></td></tr>})}</tbody></table></div>
+            <div className="report-table-wrap"><table><caption>{store.cloud?`รอบการฝึกของ ${account.student!.display_name}`:'รอบการฝึกในเครื่องนี้'}</caption><thead><tr><th>บทเรียน / วันที่</th><th>ทำแล้ว</th><th>เองครั้งแรก</th><th>หลังลองใหม่</th><th>หลังช่วย</th><th>สถานะ</th><th>รายละเอียด</th></tr></thead><tbody>{[...data.sessions].reverse().map(s=>{const counts=summarize(s.records);return <tr key={s.id}><td><strong>{lessons.find(l=>l.id===s.lessonId)?.title}</strong><small>{new Date(s.startedAt).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'})}</small></td><td>{s.records.length}/{s.questionIndices.length}</td><td>{counts.independent}</td><td>{counts.retried}</td><td>{counts.assisted}</td><td><span className="table-pill">{s.status==='complete'?'ครบกิจกรรม':s.status==='active'?'ฝึกต่อได้':'จบรอบก่อนครบ'}</span></td><td><button className="text-button" onClick={()=>setSelectedReport(selectedReport===s.id?null:s.id)} aria-expanded={selectedReport===s.id}>ดูผล<Icon name="arrow" size={16}/></button></td></tr>})}</tbody></table></div>
             {selectedReport && (()=>{const s=data.sessions.find(x=>x.id===selectedReport)!; return <section className="report-detail"><h2>รายละเอียด: {lessons.find(l=>l.id===s.lessonId)?.title}</h2><p className="fine-print">เวลาที่ทำกิจกรรมประมาณ {Math.round(s.records.reduce((a,r)=>a+r.activeMs,0)/1000)} วินาที ไม่รวมช่วงพักและซ่อนหน้าเว็บ</p><div className="word-results">{s.records.map((r,i)=><div key={i}><strong>{r.letter} · {r.word}</strong><span>{{independent:'ทำได้เองครั้งแรก',retried:'ทำได้หลังลองใหม่',assisted:'ทำได้หลังช่วย',skipped:'เก็บไว้ฝึกภายหลัง'}[r.category]}</span><small>ตัวช่วย {r.hintLevel}/3 · ลองไม่ตรง {r.wrongAttempts} ครั้ง</small></div>)}</div><h3>บันทึกจากการสังเกตของครู</h3><div className="observation-grid"><label>ระดับสมาธิ<select value={s.observation?.attention??'ยังไม่ได้สังเกต'} onChange={e=>observe(s.id,'attention',e.target.value)}>{['ยังไม่ได้สังเกต','จดจ่อได้ด้วยตนเอง','ต้องเตือนเป็นบางครั้ง','ต้องช่วยกำกับต่อเนื่อง'].map(x=><option key={x}>{x}</option>)}</select></label><label>การอ่านออกเสียง (ประเมินแยกจากเกม)<select value={s.observation?.reading??'ยังไม่ได้ประเมิน'} onChange={e=>observe(s.id,'reading',e.target.value)}>{['ยังไม่ได้ประเมิน','อ่านตัวอย่างที่ครูกำหนดได้เอง','อ่านตัวอย่างได้หลังช่วย','ควรฝึกการอ่านเพิ่มเติม'].map(x=><option key={x}>{x}</option>)}</select></label></div><label className="note-label">ข้อสังเกต (ไม่ใส่ชื่อจริงหรือข้อมูลสุขภาพ)<textarea maxLength={500} value={s.observation?.note??''} onChange={e=>observe(s.id,'note',e.target.value)} placeholder="ระบุคำที่ครูให้ลองอ่าน และสิ่งที่สังเกตได้"/></label></section>})()}
           </>}
         </>}
@@ -255,10 +274,10 @@ export default function App() {
           <div className="page-heading"><div><span className="eyebrow pink">ปรับให้สบายสำหรับเรา</span><h1 tabIndex={-1}>ปรับการใช้งาน</h1><p>ผู้ดูแลช่วยเลือกการตั้งค่าที่เหมาะกับผู้เรียนได้</p></div></div>
           <section className="settings-panel">{[{key:'largeText',title:'ตัวหนังสือใหญ่ขึ้น',detail:'ขยายคำสั่งและข้อความประกอบ'},{key:'sound',title:'เปิดเสียง',detail:'เปิดเสียงตัวอย่าง เสียงปุ่ม และเสียงฉลอง ไม่มีการบันทึกไมโครโฟน'},{key:'effectsSound',title:'เสียงปุ่มและเสียงฉลอง',detail:'เสียงสั้นเมื่อกดปุ่ม และทำนองนุ่ม ๆ เมื่อตอบถูก ปิดแยกจากเสียงอ่านได้'},{key:'recordedFirst',title:'ใช้ไฟล์เสียงบทเรียนก่อน',detail:'ใช้ไฟล์ที่ครูตรวจแล้วเมื่อมี ถ้าไม่มีจะใช้เสียงภาษาไทยในเครื่อง'},{key:'calm',title:'โหมดสงบ',detail:'ลดการเคลื่อนไหว ดาวจะแสดงแบบนิ่ง ปิดโหมดนี้เพื่อให้ดาวเด้ง'}].map(x=><label key={x.key} className="setting-row"><span><strong>{x.title}</strong><small>{x.detail}</small></span><input type="checkbox" checked={Boolean(data.settings[x.key as keyof typeof data.settings])} onChange={e=>setData(d=>({...d,settings:{...d.settings,[x.key]:e.target.checked}}))}/></label>)}</section>
           <section className="settings-panel voice-panel"><h2>เสียงฝึกอ่าน</h2><p>{recordingCount()>0?`มีไฟล์เสียงบทเรียน ${recordingCount()} รายการ`:'ยังไม่ได้เพิ่มไฟล์เสียงครู ขณะนี้ใช้เสียงภาษาไทยที่มีในอุปกรณ์'} ควรฟังและตรวจการออกเสียงก่อนใช้สอน</p><div className="voice-controls"><label htmlFor="thai-voice">เลือกเสียงภาษาไทย<select id="thai-voice" disabled={!voices.length} value={voices.some(v=>v.voiceURI===data.settings.voiceURI)?data.settings.voiceURI:''} onChange={e=>setData(d=>({...d,settings:{...d.settings,voiceURI:e.target.value}}))}><option value="">{voices.length?'เลือกอัตโนมัติ':'เครื่องนี้ไม่มีเสียงภาษาไทย'}</option>{voices.map(v=><option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>)}</select></label><label htmlFor="speech-rate">ความเร็วเสียงอ่าน · {data.settings.speechRate.toFixed(2)} เท่า<input id="speech-rate" type="range" min="0.65" max="1.10" step="0.05" value={data.settings.speechRate} aria-valuetext={`${data.settings.speechRate.toFixed(2)} เท่า`} onChange={e=>setData(d=>({...d,settings:{...d.settings,speechRate:Number(e.target.value)}}))}/><small>ปรับให้ชัดและมีเวลาฟัง ไม่จำเป็นต้องช้าที่สุด</small></label></div><button className="audio-button" disabled={!data.settings.sound} onClick={()=>playLessonAudio('กอ ไก่',data.settings,setAudioMessage)}><Icon name="sound"/>ทดลองฟัง กอ ไก่</button><span className="audio-status" role="status">{audioMessage || 'เลือกเสียงและความเร็วที่ผู้เรียนฟังเข้าใจได้'}</span></section>
-          <section className="settings-panel"><h2>ข้อมูลในเครื่องนี้</h2><p>ข้อมูลไม่ส่งไป GitHub หรือเซิร์ฟเวอร์ และอาจหายเมื่อคุณล้างข้อมูลเบราว์เซอร์ กรุณาส่งออกผลก่อนเปลี่ยนเครื่องหรือเปลี่ยนผู้เรียน</p><div className="setting-actions"><button className="secondary" onClick={exportResults}><Icon name="download"/>ส่งออกผล</button><button className="text-button danger" onClick={()=>setConfirmReset(true)}>ล้างผลเพื่อเปลี่ยนผู้เรียน</button></div></section>
+          <section className="settings-panel"><h2>{store.cloud?'ข้อมูลของผู้เรียนที่เลือก':'ข้อมูลในเครื่องนี้'}</h2><p>{store.cloud?'ผลถูกส่งไปฐานข้อมูล Supabase ที่ผู้ดูแลตั้งค่า และเก็บสำเนาในเครื่องระหว่างฝึก เปลี่ยนผู้เรียนได้จากหน้าผู้เรียนโดยเก็บผลแต่ละคนแยกกัน':'โหมดทดลองเก็บผลเฉพาะในเครื่อง และอาจหายเมื่อล้างข้อมูลเบราว์เซอร์ กรุณาส่งออกผลก่อนเปลี่ยนเครื่องหรือผู้เรียน'}</p><div className="setting-actions"><button className="secondary" onClick={exportResults}><Icon name="download"/>ส่งออกผล</button>{store.cloud?<button className="text-button" onClick={()=>go('account')}>เลือกผู้เรียนคนอื่น</button>:<button className="text-button danger" onClick={()=>setConfirmReset(true)}>ล้างผลเพื่อเปลี่ยนผู้เรียน</button>}</div></section>
         </>}
 
-        {page === 'about' && <section className="about-panel"><span className="eyebrow pink">READTECH COMPANION · 0.1.0</span><h1 tabIndex={-1}>เพื่อนร่วมทางการฝึกอ่าน</h1><p className="about-full-title">ReadTech Companion นวัตกรรมแอปพลิเคชันช่วยฝึกอ่านและประมวลผลคำสำหรับเด็กที่มีความบกพร่องทางการเรียนรู้</p><BookFriend/><h2>สั้น · ง่าย · ซ้ำ · สนุก · เห็นผล</h2><p>ฝึกทีละคำ พัฒนาไปทีละขั้น อ่านได้อย่างมั่นใจ</p><div className="notice"><div><strong>ขอบเขตรุ่นทดลอง</strong><p>พร้อมทดลอง 5 บทเรียนระดับพยัญชนะ อีก 25 บทเป็นแผนพัฒนา ยังไม่มี Pre-test/Post-test การประเมินเสียงอัตโนมัติ การบันทึกเสียง บัญชีผู้ใช้ หรือการซิงก์ข้ามเครื่อง</p><p>ใช้เสียงสังเคราะห์จากอุปกรณ์ ไม่ใช่ชุดเสียงที่ครูตรวจรับแล้ว ครูควรตรวจภาพ คำ และเสียงบนเครื่องจริงก่อนใช้กับเด็ก เครื่องที่ไม่มีเสียงไทยใช้ปุ่มช่วยและผู้ดูแลอ่านให้ฟังแทนได้</p><p>ยังไม่ใช่เครื่องมือวินิจฉัยหรือระบบที่รับรองผลการเรียนรู้ ต้องทดลองและปรับตามผู้เรียนแต่ละคน</p></div></div><button className="primary" onClick={()=>go('home')}>กลับหน้าหลัก<Icon name="arrow"/></button></section>}
+        {page === 'about' && <section className="about-panel"><span className="eyebrow pink">READTECH COMPANION · 0.1.0</span><h1 tabIndex={-1}>เพื่อนร่วมทางการฝึกอ่าน</h1><p className="about-full-title">ReadTech Companion นวัตกรรมแอปพลิเคชันช่วยฝึกอ่านและประมวลผลคำสำหรับเด็กที่มีความบกพร่องทางการเรียนรู้</p><BookFriend/><h2>สั้น · ง่าย · ซ้ำ · สนุก · เห็นผล</h2><p>ฝึกทีละคำ พัฒนาไปทีละขั้น อ่านได้อย่างมั่นใจ</p><div className="notice"><div><strong>ขอบเขตรุ่นทดลอง</strong><p>พร้อมทดลอง 5 บทเรียนระดับพยัญชนะ มีบัญชีครูและโปรไฟล์ผู้เรียนเมื่อเชื่อม Supabase อีก 25 บทเป็นแผนพัฒนา ยังไม่มี Pre-test/Post-test การประเมินเสียงอัตโนมัติ หรือการบันทึกเสียงนักเรียน</p><p>ใช้ไฟล์เสียงบทเรียนที่เพิ่มไว้ และเสียงสังเคราะห์จากอุปกรณ์สำหรับคำที่ยังไม่มีไฟล์ ครูควรตรวจภาพ คำ และเสียงบนเครื่องจริงก่อนใช้กับเด็ก เครื่องที่ไม่มีเสียงไทยใช้ปุ่มช่วยและผู้ดูแลอ่านให้ฟังแทนได้</p><p>ยังไม่ใช่เครื่องมือวินิจฉัยหรือระบบที่รับรองผลการเรียนรู้ ต้องทดลองและปรับตามผู้เรียนแต่ละคน</p></div></div><button className="primary" onClick={()=>go('home')}>กลับหน้าหลัก<Icon name="arrow"/></button></section>}
       </main>
       {page!=='exercise' && <footer className="app-footer"><span><Icon name="heart" size={14}/>เรียนรู้ด้วยความเข้าใจ ในจังหวะของตัวเอง</span><button onClick={()=>go('about')}>ReadTech Companion · รุ่นทดลอง</button></footer>}
     </div>
@@ -266,5 +285,7 @@ export default function App() {
     {pause && <Modal title="พักสักนิดก็ได้" onClose={()=>setPause(false)}><BookFriend className="pause-friend"/><p>เก็บกิจกรรมที่ทำไว้แล้ว<br/>กลับมาฝึกต่อจากเดิมได้เสมอ</p><div className="dialog-actions"><button className="primary" onClick={()=>setPause(false)}>ฝึกต่อ<Icon name="arrow"/></button><button className="secondary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button></div></Modal>}
     {confirmStart && <Modal title="เริ่มรอบใหม่ไหม?" onClose={()=>setConfirmStart(null)}><p>ผลที่ทำในรอบเดิมยังอยู่ในรายงาน แต่รอบเดิมจะจบก่อนครบ และจะเริ่มบทที่เลือกจากข้อแรก</p><div className="dialog-actions"><button className="primary" onClick={()=>start(confirmStart.id,confirmStart.indices,true)}>เริ่มรอบใหม่</button><button className="secondary" onClick={()=>setConfirmStart(null)}>ยังไม่เริ่ม</button></div></Modal>}
     {confirmReset && <Modal title="ล้างผลในเครื่องนี้?" onClose={()=>setConfirmReset(false)}><p>ผลการฝึก รางวัล และข้อสังเกตของครูจะถูกล้าง กู้คืนในแอปไม่ได้ กรุณาส่งออก CSV ก่อนล้างผล</p><div className="dialog-actions"><button className="secondary" onClick={exportResults}><Icon name="download"/>ส่งออกก่อน</button><button className="primary" onClick={()=>{setData(d=>({...d,sessions:[]}));setSessionId(null);setSelectedReport(null);setConfirmReset(false);go('home');}}>ยืนยันล้างผล</button><button className="text-button" onClick={()=>setConfirmReset(false)}>ยกเลิก</button></div></Modal>}
+    {confirmLogout && <Modal title="ยังมีผลในเครื่องรอส่ง" onClose={()=>setConfirmLogout(false)}><p>มี {store.pending} รอบที่ยังส่งไม่สำเร็จ การออกจากระบบจะล้างสำเนาของครูในเครื่องนี้ กรุณาส่งออก CSV ก่อน หรือกลับไปส่งผลให้ครบ ผลที่ส่งกลางแล้วจะยังอยู่</p><div className="dialog-actions"><button className="secondary" onClick={exportResults}>ส่งออก CSV ก่อน</button><button className="primary" onClick={()=>void logout()}>ยืนยันออกจากระบบ</button><button className="text-button" onClick={()=>setConfirmLogout(false)}>กลับไปส่งผล</button></div></Modal>}
+    {confirmRefresh && <Modal title="ใช้ผลล่าสุดจากฐานข้อมูล?" onClose={()=>setConfirmRefresh(false)}><p>ผลที่รอส่งในเครื่องนี้จะถูกแทนด้วยผลกลาง กรุณาส่งออก CSV เก็บฉบับในเครื่องก่อน หากต้องการเก็บทั้งสองฉบับให้ยกเลิก</p><div className="dialog-actions"><button className="secondary" onClick={exportResults}>ส่งออก CSV ก่อน</button><button className="primary" disabled={store.syncing} onClick={()=>void refreshCloud(true)}>ยืนยันใช้ผลกลาง</button><button className="text-button" onClick={()=>setConfirmRefresh(false)}>ยกเลิก</button></div></Modal>}
   </div>;
 }
