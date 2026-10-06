@@ -134,7 +134,19 @@ test('teacher reports require approved login and a selected learner on desktop a
   await expect(page.getByRole('heading',{name:'เพิ่มผู้เรียน',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
   await expect(page.getByRole('heading',{name:'ผู้เรียน',exact:true})).toBeVisible();
-  await expect(page.getByRole('button',{name:'รายงานผู้เรียน',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'รายงานผู้เรียน',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'รายงานผู้เรียน',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'รายงานผู้เรียน',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'เลือกผู้เรียนที่ต้องการดูรายงาน',exact:true})).toBeVisible();
+  await expect(page.getByText('รายงานของ นักอ่านหนึ่ง · RT001',{exact:true})).toHaveCount(0);
+  await page.getByLabel('ผู้เรียนที่ต้องการดูรายงาน',{exact:true}).selectOption(first);
+  await expect(page.getByText('รายงานของ นักอ่านหนึ่ง · RT001',{exact:true})).toBeVisible();
+  await page.getByLabel('ผู้เรียนที่ต้องการดูรายงาน',{exact:true}).selectOption(second);
+  await expect(page.getByText('รายงานของ นักอ่านสอง · RT002',{exact:true})).toBeVisible();
+  await expect(page.getByText('รายงานของ นักอ่านหนึ่ง · RT001',{exact:true})).toHaveCount(0);
+  await page.getByLabel('ผู้เรียนที่ต้องการดูรายงาน',{exact:true}).selectOption('');
+  await expect(page.getByRole('heading',{name:'เลือกผู้เรียนที่ต้องการดูรายงาน',exact:true})).toBeVisible();
+  await openAccount(page);
   await selectFirst(page);
   await openTeacherReport(page);
   await expect(page.getByRole('heading',{name:'รายงานผู้เรียน',exact:true})).toBeVisible();
@@ -487,4 +499,46 @@ test('learner account shows own practice history, stars and progress and can res
  await studentLogin(page,'9876543210');await openAccount(page);await expect(history).toContainText('ยังไม่มีประวัติการฝึก');
  await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
  await login(page);await expect(history).toHaveCount(0);
+});
+
+test('teacher forgot password opens with an empty email and shows the request result inside the dialog',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);let requestBody:any=null;let requestUrl='';
+ await context.route('https://readtechtest.supabase.co/auth/v1/recover**',route=>{requestBody=route.request().postDataJSON();requestUrl=route.request().url();return route.fulfill({json:{}});});
+ await page.goto('./');await page.getByRole('radio',{name:'ครู',exact:true}).check();
+ await expect(page.getByRole('button',{name:'ลืมรหัสผ่าน',exact:true})).toBeEnabled();
+ await page.getByRole('button',{name:'ลืมรหัสผ่าน',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'ลืมรหัสผ่านครู',exact:true});await expect(dialog).toBeVisible();
+ await dialog.getByRole('button',{name:'ส่งลิงก์เปลี่ยนรหัสผ่าน',exact:true}).click();expect(requestBody).toBeNull();
+ await dialog.getByLabel('อีเมลสำหรับรับลิงก์',{exact:true}).fill('teacher@example.test');
+ await dialog.getByRole('button',{name:'ส่งลิงก์เปลี่ยนรหัสผ่าน',exact:true}).click();
+ await expect(dialog.getByRole('status')).toContainText('ส่งคำขอแล้ว');
+ expect(requestBody.email).toBe('teacher@example.test');
+ expect(new URL(requestUrl).searchParams.get('redirect_to')).toBe('http://127.0.0.1:5173/ReadUP/');
+ await expect(dialog.getByRole('button',{name:'ส่งคำขอแล้ว',exact:true})).toBeDisabled();
+ await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+ const violations=await page.evaluate(async()=>(await (window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>v.id));expect(violations).toEqual([]);
+ await dialog.getByRole('button',{name:'กลับเข้าสู่ระบบ',exact:true}).click();await expect(dialog).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'เข้าสู่ระบบ',exact:true})).toBeVisible();
+});
+
+for(const [code,status,message] of [['over_email_send_rate_limit',429,'ส่งคำขอถี่เกินไป'],['email_address_not_authorized',403,'ระบบยังส่งอีเมลให้บัญชีนี้ไม่ได้'],['unexpected_failure',500,'ส่งลิงก์ไม่สำเร็จ']] as const) {
+ test(`password reset displays ${code} and permits retry`,async({page,context})=>{
+  const backend=mockBackend();await backend.install(context);let fail=true;
+  await context.route('https://readtechtest.supabase.co/auth/v1/recover**',route=>route.fulfill({status:fail?status:200,json:fail?{error_code:code,msg:'Request failed'}:{}}));
+  await page.setViewportSize({width:320,height:900});await page.goto('./');await page.getByRole('radio',{name:'ครู',exact:true}).check();
+  await page.getByLabel('อีเมลครู',{exact:true}).fill('teacher@example.test');await page.getByRole('button',{name:'ลืมรหัสผ่าน',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'ลืมรหัสผ่านครู',exact:true});
+  await expect(dialog.getByLabel('อีเมลสำหรับรับลิงก์',{exact:true})).toHaveValue('teacher@example.test');
+  await dialog.getByRole('button',{name:'ส่งลิงก์เปลี่ยนรหัสผ่าน',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText(message);
+  await expect(dialog.getByRole('button',{name:'ส่งลิงก์เปลี่ยนรหัสผ่าน',exact:true})).toBeEnabled();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  fail=false;await dialog.getByRole('button',{name:'ส่งลิงก์เปลี่ยนรหัสผ่าน',exact:true}).click();await expect(dialog.getByRole('status')).toContainText('ส่งคำขอแล้ว');
+ });
+}
+
+test('teacher report without learners offers a route to registration',async({page,context})=>{
+ const backend=mockBackend();backend.students.splice(0);await backend.install(context);await login(page);
+ await page.getByRole('button',{name:'รายงานผู้เรียน',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'ยังไม่มีผู้เรียนในความดูแล',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();await expect(page.getByRole('heading',{name:'เพิ่มผู้เรียน',exact:true})).toBeVisible();
 });

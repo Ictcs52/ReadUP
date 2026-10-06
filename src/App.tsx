@@ -36,7 +36,8 @@ export default function App() {
   const account = useCloudAccount();
   const store = useLearningStore(account);
   const authorized = Boolean(account.user && ((account.teacher?.active && account.teacher.id === account.user.id) || (account.learner?.auth_user_id === account.user.id)));
-  const canReport = Boolean(store.cloud && account.teacher && account.user?.id === account.teacher.id);
+  const canOpenReport = Boolean(account.teacher?.active && account.user?.id === account.teacher.id);
+  const canReport = Boolean(store.cloud && canOpenReport);
   const { data, setData, loaded, storageMessage, setStorageMessage } = store;
   const [page, setPage] = useState<Page>('home');
   const [level, setLevel] = useState(1);
@@ -76,11 +77,11 @@ export default function App() {
   useEffect(() => {
     setSessionId(null); setSelectedReport(null); setPause(false); setConfirmReset(false);
     setConfirmStart(null); setConfirmRefresh(false); setConfirmLogout(false);
-    stopLessonAudio(); setPage(p => p === 'account' ? 'account' : 'home');
+    stopLessonAudio(); setPage(p => p === 'account' || p === 'report' ? p : 'home');
   }, [store.scope]);
 
   useEffect(() => { if (account.recovery) setPage('account'); }, [account.recovery]);
-  useEffect(() => { if (page === 'report' && !canReport) setPage('account'); }, [page, canReport]);
+  useEffect(() => { if (page === 'report' && !canOpenReport) setPage('account'); }, [page, canOpenReport]);
 
   useEffect(() => {
     setChosen(null); setFeedback(''); setAudioMessage(''); setCelebrating(false);
@@ -113,7 +114,7 @@ export default function App() {
     return () => clearInterval(timer);
   }, [page, pause, visible, sessionId, current?.answered, current?.status]);
 
-  function go(next: Page) { setPause(false); setPage((!authorized && next !== 'about') || (next === 'report' && !canReport) ? 'account' : next); }
+  function go(next: Page) { setPause(false); setPage((!authorized && next !== 'about') || (next === 'report' && !canOpenReport) ? 'account' : next); }
   function buttonSound(event: MouseEvent<HTMLDivElement>) {
     if (!data.settings.sound || !data.settings.effectsSound) return;
     const target = event.target instanceof Element ? event.target.closest('button') : null;
@@ -231,9 +232,8 @@ export default function App() {
           <p className="teacher-area-label">สำหรับครู</p>
           <nav className="teacher-area-tabs" aria-label="เมนูสำหรับครู">
             <button className={page === 'account' ? 'active' : ''} aria-current={page === 'account' ? 'page' : undefined} onClick={()=>go('account')}><Icon name="shield" size={18}/>ผู้เรียน</button>
-            <button className={page === 'report' ? 'active' : ''} aria-current={page === 'report' ? 'page' : undefined} disabled={!canReport} aria-describedby={!canReport ? 'teacher-report-help' : undefined} onClick={()=>go('report')}><Icon name="chart" size={18}/>รายงานผู้เรียน</button>
+            <button className={page === 'report' ? 'active' : ''} aria-current={page === 'report' ? 'page' : undefined} onClick={()=>go('report')}><Icon name="chart" size={18}/>รายงานผู้เรียน</button>
           </nav>
-          {!canReport && <p id="teacher-report-help" className="teacher-report-help">เลือกผู้เรียนก่อนเปิดรายงาน</p>}
         </div>}
         {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{account.selectStudent(s);go('home');}} onLogout={requestLogout} onSignedIn={role=>go(role==='teacher'?'account':'home')} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
         {page === 'account' && account.learner && store.cloud && <LearnerHistory sessions={data.sessions} lessons={lessons} onContinue={id=>start(id)} onLessons={()=>go('lessons')}/>}
@@ -289,6 +289,10 @@ export default function App() {
           <div className="badge-grid">{[{name:'ก้าวแรกของฉัน',icon:'leaf',got:data.sessions.length>0,detail:'เริ่มกิจกรรมครั้งแรก'},{name:'ตั้งใจจนจบ',icon:'book',got:completed.length>0,detail:'ทำครบหนึ่งช่วงฝึก'},{name:'นักฝึกตัวอักษร',icon:'letters',got:completedLessons.size>=3,detail:'ทำครบ 3 บทเรียน'},{name:'กลับมาลองอีกครั้ง',icon:'replay',got:completed.some(s=>completed.filter(t=>t.lessonId===s.lessonId).length>=2),detail:'ฝึกบทเดิมครบมากกว่า 1 รอบ'}].map(b=><article className={'badge-card '+(!b.got?'not-yet':'')} key={b.name}><span className="badge-symbol"><Icon name={b.icon} size={38}/></span><h2>{b.name}</h2><p>{b.detail}</p><span className="badge-state">{b.got?'ได้รับแล้ว':'ค่อย ๆ สะสมได้'}</span></article>)}</div>
         </>}
 
+        {page === 'report' && canOpenReport && <>
+          <div className="report-learner-picker"><label htmlFor="report-student">ผู้เรียนที่ต้องการดูรายงาน</label><select id="report-student" value={account.student?.id ?? ''} onChange={event=>account.selectStudent(account.students.find(s=>s.id===event.target.value) ?? null)}><option value="">เลือกผู้เรียน</option>{account.students.map(s=><option key={s.id} value={s.id}>{s.display_name} · {s.code}{s.class_name ? ` · ${s.class_name}` : ''}</option>)}</select></div>
+          {!canReport && <><div className="page-heading"><div><h1 tabIndex={-1}>รายงานผู้เรียน</h1><p>เลือกผู้เรียนเพื่อดูความก้าวหน้าและผลการฝึก</p></div></div><section className="empty-state"><Icon name="chart" size={48}/><h2>{account.students.length ? 'เลือกผู้เรียนที่ต้องการดูรายงาน' : 'ยังไม่มีผู้เรียนในความดูแล'}</h2><p>{account.students.length ? 'เลือกรายชื่อด้านบน แล้วรายงานของคนนั้นจะแสดงที่นี่' : 'เพิ่มผู้เรียนก่อน เมื่อเริ่มฝึก ผลจะปรากฏในหน้านี้'}</p>{!account.students.length && <button className="primary" onClick={()=>go('account')}>เพิ่มผู้เรียน<Icon name="arrow"/></button>}</section></>}
+        </>}
         {page === 'report' && canReport && <>
           <div className="page-heading"><div><span className="eyebrow pink">ติดตามกิจกรรม ไม่ตัดสินผู้เรียน</span><h1 tabIndex={-1}>รายงานผู้เรียน</h1><p>{store.cloud?`ติดตามความก้าวหน้าของ ${account.student!.display_name}`:'ผลจากการทดลองบนเครื่องนี้'}</p></div><button className="secondary" disabled={!data.sessions.some(s=>s.records.length)} onClick={exportResults}><Icon name="download"/>ส่งออก CSV</button></div>
           <div className="notice"><Icon name="shield"/><div><strong>{store.cloud?`รายงานของ ${account.student!.display_name} · ${account.student!.code}`:'โหมดทดลอง · ผลเฉพาะในเครื่องนี้'}</strong><p>{store.cloud?'ผลแยกตามผู้เรียนและบัญชีครู ตรวจสถานะรอส่งก่อนเปลี่ยนเครื่องได้ในเมนูสำหรับครู':'ใช้เมนูสำหรับครูเพื่อเข้าสู่ระบบครูและเลือกผู้เรียน หากทดลองโดยไม่เชื่อมฐานข้อมูล ผลจะอยู่ในเบราว์เซอร์นี้'} คะแนนกิจกรรมแยกจากการประเมินอ่านออกเสียงของครู</p></div></div>
