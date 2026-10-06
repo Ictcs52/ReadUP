@@ -33,7 +33,12 @@ test('buttons make a click cue, only a correct answer earns animated stars and s
   expect((await notes(page)).includes(1046.5)).toBe(false);
   await page.getByRole('button', { name: 'เลือก ก', exact: true }).click();
   await expect(page.getByTestId('answer-stars')).toBeVisible();
-  await expect(page.locator('.celebration-star')).toHaveCount(5);
+  await expect(page.locator('.celebration-star')).toHaveCount(1);
+  const position = await page.locator('.star-reward-card').boundingBox();
+  expect(position).not.toBeNull();
+  expect(Math.abs(position!.x + position!.width / 2 - 195)).toBeLessThan(2);
+  expect(Math.abs(position!.y + position!.height / 2 - 422)).toBeLessThan(2);
+  await expect(page.locator('.star-reward-card').getByText('ได้ 1 ดาว', { exact: true })).toBeVisible();
   expect(await page.locator('.celebration-star').first().evaluate(el => getComputedStyle(el).animationName)).toBe('answer-star-pop');
   await expect.poll(async () => (await notes(page)).includes(1046.5)).toBe(true);
   expect(await notes(page)).toEqual(expect.arrayContaining([523.25, 659.25, 783.99, 1046.5]));
