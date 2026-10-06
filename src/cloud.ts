@@ -4,7 +4,25 @@ import type { Session } from './types';
 
 export type CloudConfig = { url: string; publishableKey: string };
 export type Teacher = { id: string; display_name: string; active: boolean };
-export type Student = { id: string; teacher_id: string; code: string; display_name: string; created_at: string };
+export type Student = { id: string; teacher_id: string; code: string; display_name: string; created_at: string; auth_user_id?: string | null; login_id?: string | null; login_enabled?: boolean };
+export type StudentCredentials = { student: Student; loginId: string; password: string };
+export const studentColumns = 'id,teacher_id,code,display_name,created_at,auth_user_id,login_id,login_enabled';
+
+export function studentLoginEmail(loginId: string) {
+  const normalized = loginId.replace(/[\s-]/g, '');
+  if (!/^\d{10}$/.test(normalized)) throw new Error('รหัสเข้าเรียนเป็นตัวเลข 10 หลักที่ครูให้');
+  return `student-${normalized}@students.readup.invalid`;
+}
+
+export async function manageStudentLogin(client: SupabaseClient, body: Record<string, unknown>): Promise<StudentCredentials> {
+  const { data, error } = await client.functions.invoke('readtech-student-accounts', { body });
+  if (error) {
+    let message = 'จัดการบัญชีไม่สำเร็จ กรุณาลองอีกครั้ง';
+    try { message = (await error.context?.json())?.error ?? message; } catch { /* Network errors have no response body. */ }
+    throw new Error(message);
+  }
+  return data;
+}
 export type CloudRow = { id: string; revision: number; payload: Session };
 const configKey = 'readtech-cloud-config';
 

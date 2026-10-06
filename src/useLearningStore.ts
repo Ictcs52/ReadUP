@@ -7,8 +7,8 @@ import type { AppData, Session } from './types';
 
 export function useLearningStore(account: CloudAccount) {
   const { config, client, teacher, student } = account;
-  const cloud = Boolean(client && teacher && student && account.user?.id === teacher.id);
-  const scope = cloud ? `workspace:${config!.url}:${teacher!.id}:${student!.id}` : 'snapshot';
+  const cloud = Boolean(client && student && ((teacher && account.user?.id === teacher.id) || (account.learner && account.user?.id === student.auth_user_id)));
+  const scope = cloud ? `workspace:${config!.url}:${account.user!.id}:${student!.id}` : 'snapshot';
   const [data, setData] = useState<AppData>(structuredClone(defaultData));
   const [loadedScope, setLoadedScope] = useState<string | null>(null);
   const [storageMessage, setStorageMessage] = useState('');

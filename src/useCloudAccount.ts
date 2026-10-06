@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { cloudClient, readCloudConfig, saveCloudConfig, type CloudConfig, type Student, type Teacher } from './cloud';
+import { cloudClient, readCloudConfig, saveCloudConfig, manageStudentLogin, studentColumns, type CloudConfig, type Student, type Teacher } from './cloud';
 import { clearPrivateCache } from './storage';
 
 export function useCloudAccount() {
@@ -8,6 +8,7 @@ export function useCloudAccount() {
   const [configReady, setConfigReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [teacher, setTeacher] = useState<Teacher | null>(null);
+  const [learner, setLearner] = useState<Student | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [student, setStudent] = useState<Student | null>(null);
   const [checking, setChecking] = useState(false);
@@ -24,11 +25,11 @@ export function useCloudAccount() {
   }, []);
 
   useEffect(() => {
-    setUser(null); setTeacher(null); setStudents([]); setStudent(null);
+    setUser(null); setTeacher(null); setLearner(null); setStudents([]); setStudent(null);
     if (!client) return;
     const { data } = client.auth.onAuthStateChange((event, session) => {
       const nextId = session?.user.id ?? null;
-      if (identity.current !== nextId) { setTeacher(null); setStudents([]); setStudent(null); identity.current = nextId; }
+      if (identity.current !== nextId) { setTeacher(null); setLearner(null); setStudents([]); setStudent(null); identity.current = nextId; }
       setUser(session?.user ?? null);
       if (event === 'PASSWORD_RECOVERY') setRecovery(true);
     });
@@ -37,20 +38,22 @@ export function useCloudAccount() {
 
   useEffect(() => {
     let alive = true;
-    if (!client || !user) { setTeacher(null); setStudents([]); setStudent(null); setChecking(false); return; }
+    if (!client || !user) { setTeacher(null); setLearner(null); setStudents([]); setStudent(null); setChecking(false); return; }
     setChecking(true); setMessage('');
     void (async () => {
       const profile = await client.from('readtech_teachers').select('id,display_name,active').eq('id', user.id).maybeSingle();
       if (profile.error) throw profile.error;
       if (!profile.data?.active) {
-        if (alive) { setTeacher(null); setStudents([]); setStudent(null); setMessage('บัญชีนี้ยังไม่ได้รับสิทธิ์ครู ให้ผู้ดูแลเพิ่มสิทธิ์ก่อน'); }
+        const own = await client.from('readtech_students').select(studentColumns).eq('auth_user_id', user.id).eq('login_enabled', true).maybeSingle();
+        if (own.error) throw own.error;
+        if (alive) { setTeacher(null); setLearner(own.data); setStudents([]); setStudent(own.data); if (!own.data) setMessage('บัญชีนี้ยังไม่ได้รับสิทธิ์ครู หรือบัญชีนักเรียนถูกพักใช้งาน ให้ติดต่อครูผู้ดูแล'); }
         return;
       }
-      const result = await client.from('readtech_students').select('id,teacher_id,code,display_name,created_at').eq('teacher_id', user.id).order('created_at');
+      const result = await client.from('readtech_students').select(studentColumns).eq('teacher_id', user.id).order('created_at');
       if (result.error) throw result.error;
       if (alive) {
         const list = result.data as Student[];
-        setTeacher(profile.data); setStudents(list);
+        setTeacher(profile.data); setLearner(null); setStudents(list);
         const saved = sessionStorage.getItem('readtech-student:' + config!.url + ':' + user.id);
         setStudent(list.find(s => s.id === saved) ?? null);
       }
@@ -60,6 +63,7 @@ export function useCloudAccount() {
 
   function configure(url: string, key: string) { setConfig(saveCloudConfig(url, key)); setMessage(''); }
   function selectStudent(value: Student | null) {
+    if (!teacher || (value && !students.some(s => s.id === value.id))) return;
     setStudent(value);
     if (user && config) {
       const key = 'readtech-student:' + config.url + ':' + user.id;
@@ -70,9 +74,15 @@ export function useCloudAccount() {
     if (!client || !teacher) throw new Error('กรุณาเข้าสู่ระบบครูก่อน');
     code = code.trim(); name = name.trim();
     if (!/^[A-Za-z0-9_-]{2,32}$/.test(code) || !name || name.length > 50) throw new Error('รหัสใช้ตัวอักษรอังกฤษ/ตัวเลข 2–32 ตัว และชื่อเรียกไม่เกิน 50 ตัว');
-    const { data, error } = await client.from('readtech_students').insert({ teacher_id: teacher.id, code, display_name: name }).select('id,teacher_id,code,display_name,created_at').single();
-    if (error) throw new Error(error.code === '23505' ? 'รหัสผู้เรียนนี้มีอยู่แล้ว ใช้รหัสอื่นได้' : 'เพิ่มผู้เรียนไม่สำเร็จ กรุณาลองอีกครั้ง');
-    setStudents(list => [...list, data]); return data as Student;
+    const result = await manageStudentLogin(client, { action: 'register', code, name });
+    setStudents(list => [...list, result.student]); return result;
+  }
+  async function studentAccess(value: Student, action: 'register' | 'reset' | 'disable' | 'enable') {
+    if (!client || !teacher) throw new Error('กรุณาเข้าสู่ระบบครูก่อน');
+    const result = await manageStudentLogin(client, { action, studentId: value.id });
+    setStudents(list => list.map(s => s.id === value.id ? result.student : s));
+    setStudent(s => s?.id === value.id ? result.student : s);
+    return result;
   }
   async function signOut() {
     if (!client || !config) return;
@@ -85,7 +95,7 @@ export function useCloudAccount() {
     }
     setRecovery(false); setMessage('');
   }
-  return { config, configReady, client, user, teacher, students, student, checking, message, recovery, setRecovery, configure, selectStudent, addStudent, signOut, reload: () => setRefresh(x => x + 1) };
+  return { config, configReady, client, user, teacher, learner, students, student, checking, message, recovery, setRecovery, configure, selectStudent, addStudent, studentAccess, signOut, reload: () => setRefresh(x => x + 1) };
 }
 
 export type CloudAccount = ReturnType<typeof useCloudAccount>;

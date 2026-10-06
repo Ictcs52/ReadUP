@@ -13,10 +13,12 @@ function token(id: string) {
   const base = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
   return base({ alg: 'HS256', typ: 'JWT' }) + '.' + base({ sub: id, role: 'authenticated', iss: 'supabase', exp: Math.floor(Date.now()/1000)+3600 }) + '.test';
 }
+const pupil = '88888888-8888-4888-8888-888888888888';
+const peer = '99999999-9999-4999-8999-999999999999';
 function mockBackend() {
   const students = [
-    { id: first, teacher_id: owner, code: 'RT001', display_name: 'นักอ่านหนึ่ง', created_at: '2026-10-06T00:00:00Z' },
-    { id: second, teacher_id: owner, code: 'RT002', display_name: 'นักอ่านสอง', created_at: '2026-10-06T00:01:00Z' },
+    { id: first, teacher_id: owner, auth_user_id: pupil, login_id: '1234567890', login_enabled: true, code: 'RT001', display_name: 'นักอ่านหนึ่ง', created_at: '2026-10-06T00:00:00Z' },
+    { id: second, teacher_id: owner, auth_user_id: peer, login_id: '9876543210', login_enabled: true, code: 'RT002', display_name: 'นักอ่านสอง', created_at: '2026-10-06T00:01:00Z' },
   ];
   const sessions = new Map<string, any>();
   let failWrites = false;
@@ -31,28 +33,39 @@ function mockBackend() {
       let uid = '';
       try { uid = JSON.parse(Buffer.from(bearer.split('.')[1], 'base64url').toString()).sub; } catch { /* Anonymous request. */ }
       if (url.pathname === '/auth/v1/token') {
-        uid = body.email === 'other@example.test' ? other : body.email === 'unknown@example.test' ? unauthorized : owner;
+        uid = body.email === 'student-1234567890@students.readup.invalid' ? pupil : body.email === 'student-9876543210@students.readup.invalid' ? peer : body.email === 'other@example.test' ? other : body.email === 'unknown@example.test' ? unauthorized : owner;
         return route.fulfill({ json: { access_token: token(uid), token_type: 'bearer', refresh_token: 'test-refresh', expires_in: 3600, user: { id: uid, email: body.email, aud: 'authenticated', role: 'authenticated', created_at: '2026-10-06T00:00:00Z', app_metadata: {}, user_metadata: {} } } });
       }
       if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 });
-      if (url.pathname === '/rest/v1/readtech_teachers') return route.fulfill({ json: uid === unauthorized ? [] : [{ id: uid, display_name: uid === owner ? 'ครูหนึ่ง' : 'ครูสอง', active: true }] });
+      if (url.pathname === '/rest/v1/readtech_teachers') return route.fulfill({ json: [unauthorized,pupil,peer].includes(uid) ? [] : [{ id: uid, display_name: uid === owner ? 'ครูหนึ่ง' : 'ครูสอง', active: true }] });
       if (url.pathname === '/rest/v1/readtech_students') {
         if (request.method() === 'POST') {
           const value = { ...body, id: '77777777-7777-4777-8777-777777777777', created_at: '2026-10-06T00:02:00Z' };
           students.push(value);
           return route.fulfill({ status: 201, json: value });
         }
-        return route.fulfill({ json: students.filter(s => s.teacher_id === uid) });
+        return route.fulfill({ json: students.filter(s => s.teacher_id === uid || (s.auth_user_id === uid && s.login_enabled)) });
+      }
+      if (url.pathname === '/functions/v1/readtech-student-accounts') {
+        if (uid !== owner) return route.fulfill({status:403,json:{error:'ไม่มีสิทธิ์ครู'}});
+        let s = students.find(s=>s.id===body.studentId);
+        if (body.action === 'register' && !s) {
+          s = {id:'77777777-7777-4777-8777-777777777777',teacher_id:owner,code:body.code,display_name:body.name,created_at:'2026-10-06T00:02:00Z',auth_user_id:'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa',login_id:'1112223334',login_enabled:true};students.push(s);
+        }
+        if (!s) return route.fulfill({status:403,json:{error:'ไม่พบผู้เรียน'}});
+        if (body.action==='disable') s.login_enabled=false;
+        if (body.action==='enable') s.login_enabled=true;
+        return route.fulfill({json:{student:s,loginId:s.login_id,password:['disable','enable'].includes(body.action)?'':'112233445566'}});
       }
       if (url.pathname === '/rest/v1/readtech_sessions') {
         const studentId = url.searchParams.get('student_id')?.replace('eq.', '');
-        return route.fulfill({ json: [...sessions.values()].filter(s => s.owner === uid && s.student_id === studentId).map(({ owner: _, student_id: __, ...row }) => row) });
+        return route.fulfill({ json: [...sessions.values()].filter(s => (s.owner === uid || students.some(p => p.id === s.student_id && p.auth_user_id === uid)) && s.student_id === studentId).map(({ owner: _, student_id: __, ...row }) => row) });
       }
       if (url.pathname === '/rest/v1/rpc/readtech_save_session') {
         if (failWrites) return route.fulfill({ status: 503, json: { code: '08006', message: 'Connection unavailable' } });
         const previous = sessions.get(body.p_payload.id);
         if ((previous?.revision ?? 0) !== body.p_expected_revision) return route.fulfill({ status: 409, json: { code: '40001', message: 'Session changed on another device' } });
-        const row = { id: body.p_payload.id, payload: body.p_payload, revision: (previous?.revision ?? 0)+1, owner: uid, student_id: body.p_student_id };
+        const row = { id: body.p_payload.id, payload: body.p_payload, revision: (previous?.revision ?? 0)+1, owner: students.find(s=>s.id===body.p_student_id)?.teacher_id, student_id: body.p_student_id };
         sessions.set(row.id, row);
         return route.fulfill({ json: { id: row.id, revision: row.revision } });
       }
@@ -98,7 +111,7 @@ test('an authenticated but unapproved account cannot open student management', a
   await login(page, 'unknown@example.test');
   await expect(page.getByRole('alert')).toContainText('ยังไม่ได้รับสิทธิ์ครู');
   await expect(page.getByRole('heading', { name: 'เพิ่มผู้เรียน', exact: true })).toHaveCount(0);
-  expect(backend.requests).not.toContain('/rest/v1/readtech_students');
+  expect(backend.requests).not.toContain('/functions/v1/readtech-student-accounts');
   await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
   await expect(page.getByRole('heading',{name:'พื้นที่สำหรับครู',exact:true})).toHaveCount(0);
 });
@@ -252,5 +265,61 @@ test('teacher management fits a mobile screen and has no automated accessibility
   await page.screenshot({ path: 'test-results/teacher-mobile.png', fullPage: true });
   await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
   const violations = await page.evaluate(async () => (await (window as any).axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa','wcag22aa'] } })).violations.map((v: any) => ({ id: v.id, targets: v.nodes.map((n: any) => n.target) })));
+  expect(violations).toEqual([]);
+});
+
+async function studentLogin(page: Page, code = '1234567890') {
+  await page.goto('./'); await openAccount(page);
+  await page.getByLabel('รหัสเข้าเรียน', {exact:true}).fill(code);
+  await page.getByLabel('รหัสผ่านนักเรียน', {exact:true}).fill('112233445566');
+  await page.getByRole('button', {name:'เข้าเรียน', exact:true}).click();
+  await expect(page.getByRole('button', {name:'เริ่มฝึกของฉัน', exact:true})).toBeVisible();
+  await page.getByRole('button', {name:'เริ่มฝึกของฉัน', exact:true}).click();
+}
+
+test('teacher registration displays credentials once and can reset or suspend a student account', async ({page,context}) => {
+  const backend=mockBackend();await backend.install(context);await login(page);
+  await page.getByLabel('รหัสผู้เรียน', {exact:true}).fill('RT003');
+  await page.getByLabel('ชื่อเรียกผู้เรียน', {exact:true}).fill('นักอ่านสาม');
+  await page.getByRole('button', {name:'เพิ่มผู้เรียน', exact:true}).click();
+  await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('1112223334');
+  await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('112233445566');
+  await page.getByRole('button',{name:'เก็บรหัสแล้ว ปิดส่วนนี้',exact:true}).click();
+  await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toHaveCount(0);
+  const card=page.locator('.student-card').filter({hasText:'นักอ่านสาม'});
+  page.once('dialog',dialog=>dialog.accept());await card.getByRole('button',{name:'ออกรหัสผ่านใหม่',exact:true}).click();
+  await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toBeVisible();
+  page.once('dialog',dialog=>dialog.accept());await card.getByRole('button',{name:'พักบัญชี',exact:true}).click();
+  await expect(card.getByRole('button',{name:'เปิดบัญชี',exact:true})).toBeVisible();
+});
+
+test('students independently practice concurrently in two browsers and teacher sees their individual results', async ({page,context,browser}) => {
+  const backend=mockBackend();await backend.install(context);await studentLogin(page);
+  await expect(page.getByRole('button',{name:'สำหรับครู',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
+  await page.getByRole('button',{name:'เลือก ก',exact:true}).click();
+  const secondContext=await browser.newContext();await backend.install(secondContext);const secondPage=await secondContext.newPage();
+  await studentLogin(secondPage,'9876543210');
+  await secondPage.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
+  await secondPage.getByRole('button',{name:'เลือก ก',exact:true}).click();
+  await expect.poll(()=>[...backend.sessions.values()].filter(s=>s.payload.records.length===1).length).toBe(2);
+  expect(new Set([...backend.sessions.values()].map(s=>s.student_id))).toEqual(new Set([first,second]));
+  await page.reload();await expect(page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true})).toBeVisible();
+  await expect(page.locator('.stat-number').filter({hasText:'1 ดวง'})).toBeVisible();
+  await openAccount(page);await page.getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
+  await expect.poll(async()=>(await keys(page)).filter(k=>k.includes(pupil)).length).toBe(0);
+  await login(page);await page.getByRole('button',{name:'เลือกผู้เรียน นักอ่านหนึ่ง',exact:true}).click();await expect(page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true})).toBeVisible();await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
+  await expect(page.getByText('รายงานของ นักอ่านหนึ่ง · RT001',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'ดูผล',exact:true})).toHaveCount(1);
+  await secondContext.close();
+});
+
+test('student login fits mobile and exposes no teacher management', async ({page,context})=>{
+  const backend=mockBackend();await backend.install(context);await page.setViewportSize({width:390,height:844});
+  await studentLogin(page);await openAccount(page);
+  await expect(page.getByRole('heading',{name:'เพิ่มผู้เรียน',exact:true})).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+  const violations=await page.evaluate(async()=>(await (window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>v.id));
   expect(violations).toEqual([]);
 });
