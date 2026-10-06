@@ -99,6 +99,10 @@ test('student accounts restrict reads and writes to self and preserve teacher as
     await assert.rejects(asUser(pupil,'update public.readtech_students set auth_user_id=$1 where id=$2',[peer,student]),e=>e.code==='42501');
     await assert.rejects(asUser(pupil,'insert into public.readtech_students(teacher_id,code,display_name) values($1,$2,$3)',[teacher,'EVIL','แอบสมัคร']),e=>e.code==='42501');
     assert.equal((await asUser(pupil,'update public.readtech_students set display_name=$1 where id=$2 returning id',['เปลี่ยนชื่อ',student])).rows.length,0);
+    await assert.rejects(save(teacher,student,0,{...payload,id:'77777777-7777-4777-8777-777777777777'}),e=>e.code==='42501');
+    await assert.rejects(save(teacher,student,1,{...payload,hintLevel:2}),e=>e.code==='42501');
+    await assert.rejects(save(teacher,student,1,{...payload,records:[{word:'แอบทำ'}]}),e=>e.code==='42501');
+    await assert.rejects(asUser(teacher,'update public.readtech_students set code=$1 where id=$2',['9999',student]),e=>e.code==='42501');
     await save(teacher,student,1,{...payload,observation:{note:'ครูตรวจแล้ว'}});
     await save(pupil,student,2,{...payload,hintLevel:1});
     assert.equal((await asUser(teacher,'select payload from public.readtech_sessions')).rows[0].payload.observation.note,'ครูตรวจแล้ว');

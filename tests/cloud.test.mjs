@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateCloudConfig, pendingSession, mergeCloudSessions, cloudPayload } from '../src/cloudDomain.mjs';
+import { validateCloudConfig, pendingSession, mergeCloudSessions, mergeTeacherSessions, cloudPayload } from '../src/cloudDomain.mjs';
 
 test('configuration accepts public keys and rejects service credentials or unexpected hosts', () => {
   assert.deepEqual(validateCloudConfig('https://sampleproject.supabase.co/', 'sb_publishable_test'), { url: 'https://sampleproject.supabase.co', publishableKey: 'sb_publishable_test' });
@@ -22,4 +22,17 @@ test('clean cached rounds accept remote results and sync bookkeeping is not uplo
   const merged = mergeCloudSessions([clean], [{ id: 'round', revision: 3, payload: { id: 'round', startedAt: 1, records: [{ word: 'ไก่' }] } }]);
   assert.equal(pendingSession(merged[0]), false); assert.equal(merged[0].cloudRevision, 3);
   assert.deepEqual(cloudPayload(merged[0]), { id: 'round', startedAt: 1, records: [{ word: 'ไก่' }] });
+});
+
+test('teacher cache discards practice drafts and preserves only pending observations on unchanged rounds',()=>{
+  const payload={id:'round',startedAt:1,records:[{word:'ไก่'}],observation:{note:'เดิม'}};
+  const remote=[{id:'round',revision:2,payload}];
+  const draft={...payload,cloudRevision:2,localRevision:3,syncedLocalRevision:2,observation:{note:'ครูแก้'}};
+  assert.equal(mergeTeacherSessions([draft],remote)[0].observation.note,'ครูแก้');
+  assert.equal(pendingSession(mergeTeacherSessions([draft],remote)[0]),true);
+  const wrong={...draft,records:[{word:'ครูแอบทำ'}]};
+  assert.deepEqual(mergeTeacherSessions([wrong,{id:'new',records:[]}],remote)[0].records,payload.records);
+  assert.equal(pendingSession(mergeTeacherSessions([wrong],remote)[0]),false);
+  assert.equal(mergeTeacherSessions([{id:'new',records:[]}],remote).length,1);
+  assert.equal(mergeTeacherSessions([draft],[{...remote[0],revision:3}])[0].syncConflict,true);
 });

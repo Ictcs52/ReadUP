@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Student } from '../cloud';
+import { StudentEdit } from './StudentEdit';
 import { Icon } from './Icon';
 
 type AccessAction = 'register' | 'reset' | 'disable' | 'enable';
@@ -9,10 +10,11 @@ function statusOf(student: Student) {
 const statusLabels = { ready: 'พร้อมเข้าเรียน', paused: 'พักบัญชี', unregistered: 'ยังไม่มีบัญชี' };
 const collator = new Intl.Collator('th', { numeric: true, sensitivity: 'base' });
 
-export function StudentRoster({ students, selectedId, busy, onSelect, onAccess, onAdd }: {
+export function StudentRoster({ students, selectedId, busy, onSelect, onAccess, onAdd, onEdit }: {
   students: Student[]; selectedId?: string; busy: boolean;
   onSelect: (student: Student) => void;
   onAccess: (student: Student, action: AccessAction) => Promise<void>;
+  onEdit: (student: Student, code: string, name: string, className: string) => Promise<void>;
   onAdd: (code: string, name: string, className: string) => Promise<boolean>;
 }) {
   const [query, setQuery] = useState('');
@@ -21,6 +23,10 @@ export function StudentRoster({ students, selectedId, busy, onSelect, onAccess, 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Student | null>(null);
+  const editTrigger = useRef<HTMLButtonElement | null>(null);
+  const restoreEditFocus = useRef(false);
+  useEffect(()=>{if(!editing && restoreEditFocus.current){restoreEditFocus.current=false;editTrigger.current?.focus();}},[editing]);
   const [managing, setManaging] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -46,7 +52,7 @@ export function StudentRoster({ students, selectedId, busy, onSelect, onAccess, 
   function clearFilters() { setQuery(''); setClassFilter(''); setStatusFilter(''); setPage(1); }
   function closeForm() { restoreFocus.current = true; setAdding(false); }
   return <section className="cloud-panel roster-panel" aria-labelledby="roster-title">
-    <div className="roster-heading"><div><h2 id="roster-title">ผู้เรียนของฉัน <span className="pill">{students.length} คน</span></h2><p>เลือกผู้เรียนเพื่อดูผลหรือฝึกกับครู</p></div><button ref={addButton} className="primary" disabled={busy} aria-expanded={adding} aria-controls="student-registration" onClick={()=>setAdding(value=>!value)}>เพิ่มผู้เรียน<Icon name="arrow" size={18}/></button></div>
+    <div className="roster-heading"><div><h2 id="roster-title">ผู้เรียนของฉัน <span className="pill">{students.length} คน</span></h2><p>เลือกผู้เรียนเพื่อดูรายงานผลการฝึก</p></div><button ref={addButton} className="primary" disabled={busy} aria-expanded={adding} aria-controls="student-registration" onClick={()=>setAdding(value=>!value)}>เพิ่มผู้เรียน<Icon name="arrow" size={18}/></button></div>
     {adding && <section id="student-registration" className="roster-registration" aria-labelledby="registration-title">
       <h3 id="registration-title">ลงทะเบียนผู้เรียน</h3><p>นักเรียนใช้เลขประจำตัวเข้าเรียนเอง ผลฝึกเก็บแยกเป็นรายคน</p>
       <form className="cloud-form roster-registration-form" onSubmit={async event=>{
@@ -75,10 +81,11 @@ export function StudentRoster({ students, selectedId, busy, onSelect, onAccess, 
         <div className="roster-identity"><h3>{student.display_name}</h3><small>เลขประจำตัว {student.code}{student.login_id && student.login_id !== student.code ? ` · รหัสเข้าเรียนเดิม ${student.login_id}` : ''}</small>{selectedId===student.id && <small className="roster-selected">กำลังเลือก</small>}</div>
         <span className="roster-class">{student.class_name || 'ยังไม่ระบุชั้น'}</span>
         <span className={'roster-status '+statusOf(student)}>{statusLabels[statusOf(student)]}</span>
-        <div className="roster-actions"><button className="secondary" disabled={busy} onClick={()=>onSelect(student)} aria-label={`เลือกผู้เรียน ${student.display_name}`}>ดูผล / ฝึก<Icon name="arrow" size={16}/></button><button className="text-button" aria-label={`จัดการบัญชี ${student.display_name}`} aria-expanded={managing===student.id} aria-controls={`student-actions-${student.id}`} disabled={busy} onClick={()=>setManaging(managing===student.id?null:student.id)}>จัดการ</button></div>
-        {managing===student.id && <div id={`student-actions-${student.id}`} className="roster-manage-actions"><span>บัญชีของ {student.display_name}</span><button className="text-button" disabled={busy} onClick={()=>void onAccess(student,student.login_id?'reset':'register')}>{student.login_id ? /^[0-9]{4}$/.test(student.login_id) ? 'คืนรหัสผ่านเริ่มต้น' : 'ออกรหัสผ่านใหม่' : 'สร้างบัญชีเข้าเรียน'}</button>{student.login_id && <button className="text-button" disabled={busy} onClick={()=>void onAccess(student,student.login_enabled===false?'enable':'disable')}>{student.login_enabled===false?'เปิดบัญชี':'พักบัญชี'}</button>}</div>}
+        <div className="roster-actions"><button className="secondary" disabled={busy} onClick={()=>onSelect(student)} aria-label={`เลือกผู้เรียน ${student.display_name}`}>ดูผล<Icon name="arrow" size={16}/></button><button className="text-button" aria-label={`จัดการบัญชี ${student.display_name}`} aria-expanded={managing===student.id} aria-controls={`student-actions-${student.id}`} disabled={busy} onClick={()=>setManaging(managing===student.id?null:student.id)}>จัดการ</button></div>
+        {managing===student.id && <div id={`student-actions-${student.id}`} className="roster-manage-actions"><span>บัญชีของ {student.display_name}</span><button className="text-button" disabled={busy} onClick={event=>{editTrigger.current=event.currentTarget;setEditing(student);}}>แก้ไขข้อมูล</button><button className="text-button" disabled={busy} onClick={()=>void onAccess(student,student.login_id?'reset':'register')}>{student.login_id ? /^[0-9]{4}$/.test(student.login_id) ? 'คืนรหัสผ่านเริ่มต้น' : 'ออกรหัสผ่านใหม่' : 'สร้างบัญชีเข้าเรียน'}</button>{student.login_id && <button className="text-button" disabled={busy} onClick={()=>void onAccess(student,student.login_enabled===false?'enable':'disable')}>{student.login_enabled===false?'เปิดบัญชี':'พักบัญชี'}</button>}</div>}
       </article>)}</div>
     </> : <div className="roster-empty"><Icon name="book" size={28}/><h3>{students.length ? 'ไม่พบผู้เรียนที่ตรงกับตัวกรอง' : 'ยังไม่มีผู้เรียน'}</h3><p>{students.length ? 'ลองเปลี่ยนคำค้น ชั้นเรียน หรือสถานะบัญชี' : 'กด “เพิ่มผู้เรียน” เพื่อลงทะเบียนคนแรก'}</p></div>}
     {filtered.length > 0 && <div className="roster-footer"><label>แสดงต่อหน้า<select aria-label="แสดงต่อหน้า" value={pageSize} onChange={event=>{setPageSize(Number(event.target.value));setPage(1);}}>{[10,20,50].map(size=><option key={size} value={size}>{size} คน</option>)}</select></label><nav aria-label="หน้ารายชื่อผู้เรียน"><button className="secondary" disabled={currentPage===1} onClick={()=>setPage(currentPage-1)} aria-label="รายชื่อหน้าก่อนหน้า"><Icon name="back" size={18}/></button><span>หน้า {currentPage} / {pageCount}</span><button className="secondary" disabled={currentPage===pageCount} onClick={()=>setPage(currentPage+1)} aria-label="รายชื่อหน้าถัดไป"><Icon name="arrow" size={18}/></button></nav></div>}
+    {editing && <StudentEdit student={editing} onSave={async(code,name,className)=>{await onEdit(editing,code,name,className);setQuery(code);setClassFilter('');setStatusFilter('');setPage(1);}} onClose={()=>{restoreEditFocus.current=true;setEditing(null);}}/>}
   </section>;
 }

@@ -36,3 +36,18 @@ export function mergeCloudSessions(local, remote) {
   }
   return [...map.values()].sort((a, b) => a.startedAt - b.startedAt);
 }
+
+// A teacher cache must never resume or upload locally created learner exercises.
+export function mergeTeacherSessions(local, remote) {
+  const cached = new Map(local.map(session=>[session.id,session]));
+  const fingerprint = session => {
+    const { observation, ...practice } = cloudPayload(session);
+    return JSON.stringify(practice, (_key,value)=>value && typeof value==='object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b))) : value);
+  };
+  return remote.map(row=>{
+    const draft=cached.get(row.id);
+    if (!draft || !pendingSession(draft) || !draft.cloudRevision) return remoteSession(row);
+    if (fingerprint(draft)!==fingerprint(row.payload)) return remoteSession(row);
+    return {...draft,syncConflict:row.revision!==(draft.cloudRevision??0)};
+  }).sort((a,b)=>a.startedAt-b.startedAt);
+}

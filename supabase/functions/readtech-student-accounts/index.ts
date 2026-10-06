@@ -28,6 +28,7 @@ Deno.serve(async req => {
   if (!bearer?.startsWith('Bearer ')) return reply({ error: 'กรุณาเข้าสู่ระบบครูก่อน' }, 401);
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(15000) }) },
   });
   // Validate with Auth before using any privileged table or account operation.
   const { data: identity, error: authError } = await admin.auth.getUser(bearer.slice(7));
@@ -42,14 +43,56 @@ Deno.serve(async req => {
     const raw = await req.text();
     if (raw.length > 2048) return reply({ error: 'ข้อมูลยาวเกินไป' }, 400);
     const body = JSON.parse(raw);
-    if (!['register', 'reset', 'disable', 'enable'].includes(body.action)) return reply({ error: 'คำสั่งไม่ถูกต้อง' }, 400);
+    if (!['register', 'reset', 'disable', 'enable', 'edit'].includes(body.action)) return reply({ error: 'คำสั่งไม่ถูกต้อง' }, 400);
     let student: any = null;
     if (body.studentId) {
       if (!/^[0-9a-f-]{36}$/i.test(body.studentId)) return reply({ error: 'ผู้เรียนไม่ถูกต้อง' }, 400);
-      const { data, error } = await admin.from('readtech_students').select(columns).eq('id', body.studentId).eq('teacher_id', teacherId).maybeSingle();
+      const { data, error } = await admin.from('readtech_students').select(columns + ',account_edit_token,account_edit_until').eq('id', body.studentId).eq('teacher_id', teacherId).maybeSingle();
       if (error) return reply({ error: 'อ่านผู้เรียนไม่สำเร็จ' }, 503);
       if (!data) return reply({ error: 'ไม่พบผู้เรียนในความดูแลของครู' }, 403);
       student = data;
+    }
+    if (student?.account_edit_token && Date.parse(student.account_edit_until) > Date.now()) return reply({ error: 'บัญชีนี้กำลังบันทึกข้อมูล กรุณารอสักครู่แล้วลองอีกครั้ง' }, 409);
+    if (body.action === 'edit') {
+      if (!student) return reply({ error: 'ไม่พบผู้เรียนในความดูแลของครู' }, 403);
+      const code = typeof body.code === 'string' ? body.code.trim() : '';
+      const name = typeof body.name === 'string' ? body.name.trim() : '';
+      const className = typeof body.className === 'string' ? body.className.trim() : '';
+      if (code !== student.code && !/^[0-9]{4}$/.test(code)) return reply({ error: 'เลขประจำตัวใหม่ต้องเป็นตัวเลข 4 หลัก' }, 400);
+      if (!code || !name || name.length > 100 || !className || className.length > 30) return reply({ error: 'กรอกเลขประจำตัว ชื่อ–สกุล และชั้นให้ครบ' }, 400);
+      if (body.expected?.code !== student.code || body.expected?.name !== student.display_name || body.expected?.className !== student.class_name) return reply({ error: 'ข้อมูลเปลี่ยนจากอีกเครื่อง กรุณาโหลดรายชื่อแล้วแก้ไขใหม่' }, 409);
+      const { data: duplicate, error: duplicateError } = await admin.from('readtech_students').select('id').eq('teacher_id', teacherId).eq('code', code).neq('id', student.id).maybeSingle();
+      if (duplicateError) return reply({ error: 'ตรวจเลขประจำตัวไม่สำเร็จ' }, 503);
+      if (duplicate) return reply({ error: 'เลขประจำตัวนี้มีอยู่แล้ว' }, 409);
+      const token = crypto.randomUUID();
+      const lease = await admin.from('readtech_students').update({ account_edit_token: token, account_edit_until: new Date(Date.now()+600000).toISOString() })
+        .eq('id', student.id).eq('teacher_id', teacherId).eq('code', student.code).eq('display_name', student.display_name).eq('class_name', student.class_name)
+        .or(`account_edit_token.is.null,account_edit_until.lt.${new Date().toISOString()}`).select('id').maybeSingle();
+      if (lease.error || !lease.data) return reply({ error: 'ข้อมูลกำลังเปลี่ยน กรุณาโหลดรายชื่อแล้วลองอีกครั้ง' }, 409);
+      const loginId = student.auth_user_id && code !== student.code ? code : student.login_id;
+      const changeAuth = Boolean(student.auth_user_id && (loginId !== student.login_id || student.account_edit_token));
+      let authChanged = false;
+      let releaseLease = !student.account_edit_token;
+      try {
+        if (changeAuth) {
+          const auth = await admin.auth.admin.updateUserById(student.auth_user_id, { email: `student-${loginId}@students.readup.invalid`, email_confirm: true });
+          if (auth.error) return reply({ error: ['email_exists','email_address_not_authorized'].includes(auth.error.code || '') ? 'เลขประจำตัวนี้มีบัญชีเข้าเรียนแล้ว' : 'เปลี่ยนชื่อผู้ใช้ไม่สำเร็จ กรุณาลองอีกครั้ง' }, auth.error.code === 'email_exists' ? 409 : 503);
+          authChanged = true;
+        }
+        const saved = await admin.from('readtech_students').update({ code, display_name: name, class_name: className, login_id: loginId, account_edit_token: null, account_edit_until: null })
+          .eq('id', student.id).eq('teacher_id', teacherId).eq('account_edit_token', token).select(columns).single();
+        if (saved.error) {
+          if (authChanged) {
+            const rollback = await admin.auth.admin.updateUserById(student.auth_user_id, { email: `student-${student.login_id}@students.readup.invalid`, email_confirm: true });
+            releaseLease = !rollback.error;
+          }
+          return reply({ error: saved.error.code === '23505' ? 'เลขประจำตัวนี้มีอยู่แล้ว' : 'บันทึกไม่สำเร็จ กรุณาโหลดรายชื่อแล้วลองอีกครั้ง' }, 409);
+        }
+        releaseLease = true;
+        return reply({ student: saved.data, loginId: saved.data.login_id || '', password: '' });
+      } finally {
+        if (releaseLease) await admin.from('readtech_students').update({ account_edit_token: null, account_edit_until: null }).eq('id',student.id).eq('teacher_id',teacherId).eq('account_edit_token',token);
+      }
     }
     if (body.action !== 'register' && !student?.auth_user_id) return reply({ error: 'สร้างบัญชีเข้าเรียนให้ผู้เรียนก่อน' }, 400);
     if (body.action === 'disable' || body.action === 'enable') {
@@ -61,7 +104,8 @@ Deno.serve(async req => {
     if (body.action === 'reset') {
       const { error } = await admin.auth.admin.updateUserById(student.auth_user_id, { password });
       if (error) return reply({ error: 'ออกรหัสผ่านใหม่ไม่สำเร็จ' }, 503);
-      return reply({ student, loginId: student.login_id, password });
+      const safeStudent = Object.fromEntries(columns.split(',').map(key=>[key,student[key]]));
+      return reply({ student: safeStudent, loginId: student.login_id, password });
     }
     if (student?.auth_user_id) return reply({ error: 'มีบัญชีเข้าเรียนแล้ว ใช้ปุ่มออกรหัสผ่านใหม่ได้' }, 409);
     const code = student?.code ?? (typeof body.code === 'string' ? body.code.trim() : '');

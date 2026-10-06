@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { defaultData, loadData, saveData } from './storage';
 import { fetchSessions, writeSession } from './cloud';
-import { mergeCloudSessions, pendingSession, remoteSession } from './cloudDomain.mjs';
+import { mergeCloudSessions, mergeTeacherSessions, pendingSession, remoteSession } from './cloudDomain.mjs';
 import type { CloudAccount } from './useCloudAccount';
 import type { AppData, Session } from './types';
 
@@ -30,7 +30,7 @@ export function useLearningStore(account: CloudAccount) {
       if (cloud) {
         try {
           const remote = await fetchSessions(client!, student!.id);
-          local = { ...local, sessions: mergeCloudSessions(local.sessions, remote) };
+          local = { ...local, sessions: (teacher ? mergeTeacherSessions : mergeCloudSessions)(local.sessions, remote) };
         } catch { if (alive) setSyncMessage('ยังโหลดผลกลางไม่ได้ ใช้ผลที่เก็บในเครื่องนี้ก่อน แล้วลองเชื่อมต่ออีกครั้ง'); }
       }
       if (alive) { setData(local); setLoadedScope(scope); }
@@ -91,7 +91,7 @@ export function useLearningStore(account: CloudAccount) {
     const remote = await fetchSessions(client!, student!.id);
     // The component is reset on a scope change; the caller also disables switching during this request.
     if (key !== activeScope.current) return;
-    setData(d => ({ ...d, sessions: replaceDrafts ? remote.map(remoteSession) : mergeCloudSessions(d.sessions, remote) }));
+    setData(d => ({ ...d, sessions: replaceDrafts ? remote.map(remoteSession) : (teacher ? mergeTeacherSessions : mergeCloudSessions)(d.sessions, remote) }));
     setSyncMessage('');
   }
   const activeScope = useRef(scope); activeScope.current = scope;

@@ -299,3 +299,7 @@ dialog { width: min(500px,calc(100% - 32px)); border: 1px solid #efd7e3; border-
   .teacher-account.teacher-account-compact { gap:8px; }
   .teacher-account-compact .cloud-actions { gap:8px; }
 }
+.student-edit-dialog { max-width:500px; }
+.student-edit-dialog>p { font-size:13px; line-height:1.8; color:#756370; margin:0 0 18px; }
+.student-edit-dialog .edit-login-note { background:#fff5e5; color:#745327; padding:12px; border-radius:10px; font-size:12px; line-height:1.8; margin:0; }
+.student-edit-dialog .cloud-message { margin:0; }

@@ -88,6 +88,14 @@ export function useCloudAccount() {
     setStudent(s => s?.id === value.id ? result.student : s);
     return result;
   }
+  async function editStudent(value: Student, code: string, name: string, className: string) {
+    if (!client || !teacher || !students.some(s=>s.id===value.id)) throw new Error('ไม่มีสิทธิ์แก้ข้อมูลผู้เรียนนี้');
+    const result = await manageStudentLogin(client, { action: 'edit', studentId: value.id, code, name, className,
+      expected: { code: value.code, name: value.display_name, className: value.class_name || '' } });
+    setStudents(list=>list.map(s=>s.id===value.id?result.student:s));
+    setStudent(s=>s?.id===value.id?result.student:s);
+    return result;
+  }
   async function signOut() {
     if (!client || !config) return;
     const owner = user?.id;
@@ -99,7 +107,7 @@ export function useCloudAccount() {
     }
     setRecovery(false); setMessage('');
   }
-  return { config, configReady, authReady, client, user, teacher, learner, students, student, checking, message, recovery, setRecovery, configure, selectStudent, addStudent, studentAccess, signOut, reload: () => setRefresh(x => x + 1) };
+  return { config, configReady, authReady, client, user, teacher, learner, students, student, checking, message, recovery, setRecovery, configure, selectStudent, addStudent, studentAccess, editStudent, signOut, reload: () => setRefresh(x => x + 1) };
 }
 
 export type CloudAccount = ReturnType<typeof useCloudAccount>;

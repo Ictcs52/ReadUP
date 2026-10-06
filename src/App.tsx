@@ -37,6 +37,8 @@ export default function App() {
   const store = useLearningStore(account);
   const authorized = Boolean(account.user && ((account.teacher?.active && account.teacher.id === account.user.id) || (account.learner?.auth_user_id === account.user.id)));
   const canOpenReport = Boolean(account.teacher?.active && account.user?.id === account.teacher.id);
+  const teacherReportOnly = Boolean(canOpenReport && store.cloud);
+  const canPractice = authorized && !teacherReportOnly;
   const canReport = Boolean(store.cloud && canOpenReport);
   const { data, setData, loaded, storageMessage, setStorageMessage } = store;
   const [page, setPage] = useState<Page>('home');
@@ -77,7 +79,7 @@ export default function App() {
   useEffect(() => {
     setSessionId(null); setSelectedReport(null); setPause(false); setConfirmReset(false);
     setConfirmStart(null); setConfirmRefresh(false); setConfirmLogout(false);
-    stopLessonAudio(); setPage(p => p === 'account' || p === 'report' ? p : 'home');
+    stopLessonAudio(); setPage(p => p === 'account' || p === 'report' ? p : account.teacher && account.student ? 'report' : 'home');
   }, [store.scope]);
 
   useEffect(() => { if (account.recovery) setPage('account'); }, [account.recovery]);
@@ -104,7 +106,7 @@ export default function App() {
   }, [data.settings.sound, data.settings.effectsSound]);
 
   useEffect(() => {
-    if (page !== 'exercise' || pause || !visible || !current || current.answered || current.status !== 'active') return;
+    if (!canPractice || page !== 'exercise' || pause || !visible || !current || current.answered || current.status !== 'active') return;
     let last = performance.now();
     const timer = window.setInterval(() => {
       const now = performance.now();
@@ -112,19 +114,20 @@ export default function App() {
       setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === sessionId ? { ...s, currentMs: s.currentMs + elapsed } : s) }));
     }, 1000);
     return () => clearInterval(timer);
-  }, [page, pause, visible, sessionId, current?.answered, current?.status]);
+  }, [canPractice, page, pause, visible, sessionId, current?.answered, current?.status]);
 
-  function go(next: Page) { setPause(false); setPage((!authorized && next !== 'about') || (next === 'report' && !canOpenReport) ? 'account' : next); }
+  function go(next: Page) { if (teacherReportOnly && ['home','exercise','result'].includes(next)) next='report'; setPause(false); setPage((!authorized && next !== 'about') || (next === 'report' && !canOpenReport) ? 'account' : next); }
   function buttonSound(event: MouseEvent<HTMLDivElement>) {
     if (!data.settings.sound || !data.settings.effectsSound) return;
     const target = event.target instanceof Element ? event.target.closest('button') : null;
     if (target && !target.disabled) playFeedbackSound('click');
   }
   function updateSession(fn: (s: Session) => Session) {
+    if (!canPractice) return;
     setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === sessionId ? markChanged(fn(s)) : s) }));
   }
   function start(id: number, indices?: number[], approved = false) {
-    if (!authorized) { go('account'); return; }
+    if (!canPractice) { go(canOpenReport?'report':'account'); return; }
     if (active && active.lessonId === id && !indices && !approved) { setSessionId(active.id); go('exercise'); return; }
     if (active && !approved) { setConfirmStart({ id, indices }); return; }
     const target = lessons.find(l => l.id === id)!;
@@ -206,7 +209,7 @@ export default function App() {
     return <article className="lesson-card" key={l.id}>
       <div className={'lesson-symbol tone-' + l.id}><Icon name={['letters','sound','puzzle','leaf','book'][l.id - 1]} size={28} /></div>
       <div className="lesson-card-copy"><span className="eyebrow">บทที่ {l.id} · 5 กิจกรรม</span><h3>{l.title}</h3><p>{l.description}</p></div>
-      <button className={'lesson-action ' + (done ? 'done' : '')} onClick={() => start(l.id)} aria-label={`${inProgress ? 'ฝึกต่อ' : done ? 'ฝึกอีกครั้ง' : 'เริ่มฝึก'} ${l.title}`}><span>{inProgress ? 'ฝึกต่อ' : done ? 'ฝึกอีกครั้ง' : 'เริ่มฝึก'}</span><Icon name={done ? 'replay' : 'arrow'} /></button>
+      {canPractice && <button className={'lesson-action ' + (done ? 'done' : '')} onClick={() => start(l.id)} aria-label={`${inProgress ? 'ฝึกต่อ' : done ? 'ฝึกอีกครั้ง' : 'เริ่มฝึก'} ${l.title}`}><span>{inProgress ? 'ฝึกต่อ' : done ? 'ฝึกอีกครั้ง' : 'เริ่มฝึก'}</span><Icon name={done ? 'replay' : 'arrow'} /></button>}
     </article>;
   }
 
@@ -223,7 +226,7 @@ export default function App() {
     <div className={'workspace ' + (page === 'exercise' ? 'focused' : '')}>
       <header className="topbar">
         <div className="topbar-title">{page === 'exercise' ? <button className="text-button" onClick={() => setPause(true)}><Icon name="back" />พัก / กลับหน้าหลัก</button> : <><span className="mobile-brand">ReadTech</span><span className="desktop-kicker">ฝึกทีละคำ พัฒนาไปทีละขั้น</span></>}</div>
-        <div className="topbar-right">{store.cloud ? <><button className="learner-chip" onClick={()=>go('account')}><Icon name="shield" size={16}/>{account.student!.display_name}</button><span className="local-badge">{store.syncing?'กำลังส่งผล…':store.pending?`รอส่ง ${store.pending} รอบ`:store.syncMessage?'ยังโหลดผลกลางไม่ได้':data.sessions.length?'บันทึกกลางแล้ว':'พร้อมบันทึกกลาง'}</span></> : <span className="local-badge"><Icon name="shield" size={16}/>โหมดทดลอง · ข้อมูลอยู่ในเครื่องนี้</span>}<nav className="topbar-actions" aria-label="เมนูบัญชี"><button className="settings-button" aria-label="ปรับการใช้งาน" onClick={() => page === 'exercise' ? setPause(true) : go('settings')}><Icon name={page === 'exercise' ? 'pause' : 'settings'} /></button><button className="topbar-logout" onClick={requestLogout}><Icon name="lock" size={18}/><span>ออกจากระบบ</span></button></nav></div>
+        <div className="topbar-right">{store.cloud ? <><button className="learner-chip" onClick={()=>go('account')}><Icon name="shield" size={16}/>{account.student!.display_name}</button><span className="local-badge">{store.syncing?'กำลังส่งผล…':store.pending?`รอส่ง ${store.pending} รอบ`:store.syncMessage?'ยังโหลดผลกลางไม่ได้':data.sessions.length?'บันทึกกลางแล้ว':'พร้อมบันทึกกลาง'}</span></> : <span className="local-badge"><Icon name="shield" size={16}/>{account.teacher?'ตัวอย่างบทเรียนครู · แยกจากผลผู้เรียน':'โหมดทดลอง · ข้อมูลอยู่ในเครื่องนี้'}</span>}<nav className="topbar-actions" aria-label="เมนูบัญชี"><button className="settings-button" aria-label="ปรับการใช้งาน" onClick={() => page === 'exercise' ? setPause(true) : go('settings')}><Icon name={page === 'exercise' ? 'pause' : 'settings'} /></button><button className="topbar-logout" onClick={requestLogout}><Icon name="lock" size={18}/><span>ออกจากระบบ</span></button></nav></div>
       </header>
       {storageMessage && <div className="storage-warning" role="alert"><Icon name="info" /><span>{storageMessage}</span><button className="text-button" onClick={exportResults}>ส่งออกผล</button></div>}
       {store.cloud && store.syncMessage && <div className="storage-warning" role="status"><Icon name="info"/><span>{store.syncMessage}</span><button className="text-button" onClick={()=>go('account')}>จัดการผล</button></div>}
@@ -235,7 +238,7 @@ export default function App() {
             <button className={page === 'report' ? 'active' : ''} aria-current={page === 'report' ? 'page' : undefined} onClick={()=>go('report')}><Icon name="chart" size={18}/>รายงานผู้เรียน</button>
           </nav>
         </div>}
-        {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{account.selectStudent(s);go('home');}} onLogout={requestLogout} onSignedIn={role=>go(role==='teacher'?'account':'home')} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
+        {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{account.selectStudent(s);setPage(account.teacher && s?'report':'home');}} onLogout={requestLogout} onSignedIn={role=>go(role==='teacher'?'account':'home')} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
         {page === 'account' && account.learner && store.cloud && <LearnerHistory sessions={data.sessions} lessons={lessons} onContinue={id=>start(id)} onLessons={()=>go('lessons')}/>}
         {page === 'home' && <>
 
@@ -255,12 +258,12 @@ export default function App() {
         </>}
 
         {page === 'lessons' && <>
-          <div className="page-heading"><div><span className="eyebrow pink">เรียนรู้ในจังหวะของเรา</span><h1 tabIndex={-1}>บทเรียนของฉัน</h1><p>เลือกบทที่อยากฝึก หรือกลับมาทบทวนได้เสมอ</p></div></div>
+          <div className="page-heading"><div><span className="eyebrow pink">เรียนรู้ในจังหวะของเรา</span><h1 tabIndex={-1}>บทเรียนของฉัน</h1><p>{teacherReportOnly?'ครูดูรายการบทเรียนได้ นักเรียนทำแบบฝึกผ่านบัญชีของตนเอง':'เลือกบทที่อยากฝึก หรือกลับมาทบทวนได้เสมอ'}</p></div></div>
           <div className="level-tabs" role="tablist" aria-label="ระดับบทเรียน">{curriculum.levels.map(l=><button role="tab" aria-selected={level===l.id} aria-controls="level-panel" id={`level-tab-${l.id}`} key={l.id} onClick={()=>setLevel(l.id)} className={level===l.id?'selected':''}>LEVEL {l.id}<span>{l.id===1?'พร้อมฝึก':'แผนบทเรียน'}</span></button>)}</div>
           <section className="level-panel" id="level-panel" role="tabpanel" aria-labelledby={`level-tab-${level}`}><div className="section-title"><div><span className="eyebrow">LEVEL {level}</span><h2>{curriculum.levels[level-1].title}</h2><p>{curriculum.levels[level-1].subtitle}</p></div><span className="pill">{level===1?'5 บทเรียนพร้อมทดลอง':'กำลังเตรียมเนื้อหา'}</span></div>{level===1 ? <div className="lesson-list">{lessons.map(lessonCard)}</div> : <><p className="notice">ระดับนี้เป็นแผนการพัฒนา ยังไม่มีแบบฝึกให้ใช้งาน และยังไม่ใช่บทเรียนที่ผ่านการตรวจเนื้อหา</p>{curriculum.levels[level-1].lessons.map((title,i)=><div key={title} className="planned-lesson"><span className="planned-number">{(level-1)*5+i+1}</span><div><h3>{title}</h3><p>อยู่ระหว่างเตรียมกิจกรรม</p></div><Icon name="clock"/></div>)}</>}</section>
         </>}
 
-        {page === 'exercise' && current && lesson && question && <div className="exercise-wrap">
+        {page === 'exercise' && canPractice && current && lesson && question && <div className="exercise-wrap">
           <div className="exercise-heading"><div><span className="eyebrow pink">บทที่ {lesson.id} · พยัญชนะมหาสนุก</span><h1 tabIndex={-1}>{lesson.title}</h1></div><span className="pill">ข้อ {current.index+1} จาก {current.questionIndices.length}</span></div>
           <div className="progress-track" role="progressbar" aria-label="กิจกรรมที่ทำแล้ว" aria-valuemin={0} aria-valuemax={current.questionIndices.length} aria-valuenow={current.index + Number(current.answered)}><span style={{width: `${(current.index + Number(current.answered))/current.questionIndices.length*100}%`}}/></div>
           <section className="exercise-card">
@@ -281,7 +284,7 @@ export default function App() {
           <p className="exercise-footer"><Icon name="heart" size={17}/>ไม่มีการจับเวลาแข่งขัน · พักได้ทุกเมื่อ</p>
         </div>}
 
-        {page === 'result' && current && lesson && <section className="result-card"><div className="reward-medal"><Icon name="star" size={54}/></div><span className="eyebrow pink">ขอบคุณที่ตั้งใจฝึก</span><h1 tabIndex={-1}>ทำกิจกรรมครบแล้ว!</h1><p>{lesson.title}</p><div className="result-stars" aria-hidden="true">{'★'.repeat(current.records.filter(r=>r.category!=='skipped').length)}</div><div className="result-summary"><strong>{current.records.filter(r=>r.category!=='skipped').length} ดาว</strong><span>จากกิจกรรมที่ทำได้ในรอบนี้</span></div><p>ทุกครั้งที่ลอง คือก้าวเล็ก ๆ ที่สำคัญ<br/>อยากพัก หรือกลับมาฝึกอีกครั้งก็ได้</p><div className="result-actions"><button className="primary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button><button className="secondary" onClick={()=>start(lesson.id)}>ฝึกอีกครั้ง<Icon name="replay"/></button></div><p className="fine-print">ดาวแสดงการทำกิจกรรม ไม่ใช่ผลประเมินการอ่านออกเสียง</p></section>}
+        {page === 'result' && canPractice && current && lesson && <section className="result-card"><div className="reward-medal"><Icon name="star" size={54}/></div><span className="eyebrow pink">ขอบคุณที่ตั้งใจฝึก</span><h1 tabIndex={-1}>ทำกิจกรรมครบแล้ว!</h1><p>{lesson.title}</p><div className="result-stars" aria-hidden="true">{'★'.repeat(current.records.filter(r=>r.category!=='skipped').length)}</div><div className="result-summary"><strong>{current.records.filter(r=>r.category!=='skipped').length} ดาว</strong><span>จากกิจกรรมที่ทำได้ในรอบนี้</span></div><p>ทุกครั้งที่ลอง คือก้าวเล็ก ๆ ที่สำคัญ<br/>อยากพัก หรือกลับมาฝึกอีกครั้งก็ได้</p><div className="result-actions"><button className="primary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button><button className="secondary" onClick={()=>start(lesson.id)}>ฝึกอีกครั้ง<Icon name="replay"/></button></div><p className="fine-print">ดาวแสดงการทำกิจกรรม ไม่ใช่ผลประเมินการอ่านออกเสียง</p></section>}
 
         {page === 'rewards' && <>
           <div className="page-heading"><div><span className="eyebrow pink">เก็บความภูมิใจไว้ด้วยกัน</span><h1 tabIndex={-1}>รางวัลของฉัน</h1><p>ไม่มีการหักดาว และไม่ต้องแข่งกับใคร</p></div></div>
@@ -295,10 +298,10 @@ export default function App() {
         </>}
         {page === 'report' && canReport && <>
           <div className="page-heading"><div><span className="eyebrow pink">ติดตามกิจกรรม ไม่ตัดสินผู้เรียน</span><h1 tabIndex={-1}>รายงานผู้เรียน</h1><p>{store.cloud?`ติดตามความก้าวหน้าของ ${account.student!.display_name}`:'ผลจากการทดลองบนเครื่องนี้'}</p></div><button className="secondary" disabled={!data.sessions.some(s=>s.records.length)} onClick={exportResults}><Icon name="download"/>ส่งออก CSV</button></div>
-          <div className="notice"><Icon name="shield"/><div><strong>{store.cloud?`รายงานของ ${account.student!.display_name} · ${account.student!.code}`:'โหมดทดลอง · ผลเฉพาะในเครื่องนี้'}</strong><p>{store.cloud?'ผลแยกตามผู้เรียนและบัญชีครู ตรวจสถานะรอส่งก่อนเปลี่ยนเครื่องได้ในเมนูสำหรับครู':'ใช้เมนูสำหรับครูเพื่อเข้าสู่ระบบครูและเลือกผู้เรียน หากทดลองโดยไม่เชื่อมฐานข้อมูล ผลจะอยู่ในเบราว์เซอร์นี้'} คะแนนกิจกรรมแยกจากการประเมินอ่านออกเสียงของครู</p></div></div>
+          <div className="notice"><Icon name="shield"/><div><strong>{store.cloud?`รายงานของ ${account.student!.display_name} · ${account.student!.code}`:'โหมดทดลอง · ผลเฉพาะในเครื่องนี้'}</strong><p>{store.cloud?'ผลฝึกมาจากบัญชีนักเรียน ครูดูรายงานและบันทึกข้อสังเกตได้':'ใช้เมนูสำหรับครูเพื่อเข้าสู่ระบบครูและเลือกผู้เรียน หากทดลองโดยไม่เชื่อมฐานข้อมูล ผลจะอยู่ในเบราว์เซอร์นี้'} คะแนนกิจกรรมแยกจากการประเมินอ่านออกเสียงของครู</p></div></div>
           <div className="report-stats">{[{label:'ทำได้เองครั้งแรก',value:total.independent},{label:'ทำได้หลังลองใหม่',value:total.retried},{label:'ทำได้หลังช่วย',value:total.assisted},{label:'เก็บไว้ฝึกภายหลัง',value:total.skipped}].map(x=><div className="report-stat" key={x.label}><strong>{x.value}<small> ข้อ</small></strong><span>{x.label}</span></div>)}</div>
           <p className="fine-print">จากกิจกรรมที่บันทึก {total.total} ข้อ · ทำได้เองครั้งแรก {percent(total.independent,total.total)}% · ไม่รวมข้อที่ยังไม่ได้ทำในรอบที่ค้างอยู่</p>
-          {!data.sessions.length ? <section className="empty-state"><Icon name="chart" size={48}/><h2>ยังไม่มีผลการฝึก</h2><p>เมื่อทำกิจกรรม ผลจะปรากฏที่นี่</p><button className="primary" onClick={()=>start(1)}>ทดลองบทเรียนแรก<Icon name="arrow"/></button></section> : <>
+          {!data.sessions.length ? <section className="empty-state"><Icon name="chart" size={48}/><h2>ยังไม่มีผลการฝึก</h2><p>เมื่อทำกิจกรรม ผลจะปรากฏที่นี่</p><p>ให้นักเรียนเข้าสู่ระบบด้วยบัญชีของตนเองเพื่อเริ่มฝึก</p></section> : <>
             <div className="report-table-wrap"><table><caption>{store.cloud?`รอบการฝึกของ ${account.student!.display_name}`:'รอบการฝึกในเครื่องนี้'}</caption><thead><tr><th>บทเรียน / วันที่</th><th>ทำแล้ว</th><th>เองครั้งแรก</th><th>หลังลองใหม่</th><th>หลังช่วย</th><th>สถานะ</th><th>รายละเอียด</th></tr></thead><tbody>{[...data.sessions].reverse().map(s=>{const counts=summarize(s.records);return <tr key={s.id}><td><strong>{lessons.find(l=>l.id===s.lessonId)?.title}</strong><small>{new Date(s.startedAt).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'})}</small></td><td>{s.records.length}/{s.questionIndices.length}</td><td>{counts.independent}</td><td>{counts.retried}</td><td>{counts.assisted}</td><td><span className="table-pill">{s.status==='complete'?'ครบกิจกรรม':s.status==='active'?'ฝึกต่อได้':'จบรอบก่อนครบ'}</span></td><td><button className="text-button" onClick={()=>setSelectedReport(selectedReport===s.id?null:s.id)} aria-expanded={selectedReport===s.id}>ดูผล<Icon name="arrow" size={16}/></button></td></tr>})}</tbody></table></div>
             {selectedReport && (()=>{const s=data.sessions.find(x=>x.id===selectedReport)!; return <section className="report-detail"><h2>รายละเอียด: {lessons.find(l=>l.id===s.lessonId)?.title}</h2><p className="fine-print">เวลาที่ทำกิจกรรมประมาณ {Math.round(s.records.reduce((a,r)=>a+r.activeMs,0)/1000)} วินาที ไม่รวมช่วงพักและซ่อนหน้าเว็บ</p><div className="word-results">{s.records.map((r,i)=><div key={i}><strong>{r.letter} · {r.word}</strong><span>{{independent:'ทำได้เองครั้งแรก',retried:'ทำได้หลังลองใหม่',assisted:'ทำได้หลังช่วย',skipped:'เก็บไว้ฝึกภายหลัง'}[r.category]}</span><small>ตัวช่วย {r.hintLevel}/3 · ลองไม่ตรง {r.wrongAttempts} ครั้ง</small></div>)}</div><h3>บันทึกจากการสังเกตของครู</h3><div className="observation-grid"><label>ระดับสมาธิ<select value={s.observation?.attention??'ยังไม่ได้สังเกต'} onChange={e=>observe(s.id,'attention',e.target.value)}>{['ยังไม่ได้สังเกต','จดจ่อได้ด้วยตนเอง','ต้องเตือนเป็นบางครั้ง','ต้องช่วยกำกับต่อเนื่อง'].map(x=><option key={x}>{x}</option>)}</select></label><label>การอ่านออกเสียง (ประเมินแยกจากเกม)<select value={s.observation?.reading??'ยังไม่ได้ประเมิน'} onChange={e=>observe(s.id,'reading',e.target.value)}>{['ยังไม่ได้ประเมิน','อ่านตัวอย่างที่ครูกำหนดได้เอง','อ่านตัวอย่างได้หลังช่วย','ควรฝึกการอ่านเพิ่มเติม'].map(x=><option key={x}>{x}</option>)}</select></label></div><label className="note-label">ข้อสังเกต (ไม่ใส่ชื่อจริงหรือข้อมูลสุขภาพ)<textarea maxLength={500} value={s.observation?.note??''} onChange={e=>observe(s.id,'note',e.target.value)} placeholder="ระบุคำที่ครูให้ลองอ่าน และสิ่งที่สังเกตได้"/></label></section>})()}
           </>}
