@@ -10,6 +10,13 @@ export function thaiVoices(): SpeechSynthesisVoice[] {
   return window.speechSynthesis?.getVoices().filter(v => /^th(?:-|_)?/i.test(v.lang)) ?? [];
 }
 
+export function preferredThaiVoice(voices: SpeechSynthesisVoice[]) {
+  // Edge can expose the Microsoft voice with a localized name or an English URI.
+  return voices.find(v => /premwadee|เปรมวดี/i.test(`${v.name} ${v.voiceURI}`) && !v.localService)
+    ?? voices.find(v => /premwadee|เปรมวดี/i.test(`${v.name} ${v.voiceURI}`))
+    ?? voices.find(v => v.default) ?? voices.find(v => v.localService) ?? voices[0];
+}
+
 export function recordingCount() { return Object.values(recordings).filter(Boolean).length; }
 
 export function stopLessonAudio() {
@@ -30,7 +37,7 @@ export function playLessonAudio(text: string, settings: Settings, onMessage: (me
   function deviceVoice() {
     if (request !== generation) return;
     const voices = thaiVoices();
-    const voice = voices.find(v => v.voiceURI === settings.voiceURI) ?? voices.find(v => v.default) ?? voices.find(v => v.localService) ?? voices[0];
+    const voice = voices.find(v => v.voiceURI === settings.voiceURI) ?? preferredThaiVoice(voices);
     if (!voice || !window.speechSynthesis) { onMessage('เครื่องนี้ไม่มีเสียงภาษาไทย ให้ผู้ดูแลอ่านตัวอย่าง หรือใช้ปุ่มช่วยได้'); return; }
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.voice = voice; utterance.lang = 'th-TH'; utterance.rate = rate;
@@ -39,7 +46,7 @@ export function playLessonAudio(text: string, settings: Settings, onMessage: (me
     utterance.onerror = e => {
       if (request === generation && e.error !== 'interrupted' && e.error !== 'canceled') onMessage('เปิดเสียงไม่สำเร็จ ลองกดฟังอีกครั้ง หรือให้ผู้ดูแลอ่านให้ฟังได้');
     };
-    onMessage('กำลังใช้เสียงภาษาไทยในเครื่อง');
+    onMessage(`กำลังใช้เสียง ${voice.name}`);
     window.speechSynthesis.speak(utterance);
   }
   const file = settings.recordedFirst ? recordings[text] : null;

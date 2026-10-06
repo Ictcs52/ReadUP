@@ -3,13 +3,14 @@ import { test, expect, type Page } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => { await authenticatedDemo(page); });
 
-async function mockSpeech(page: Page, hasThai = true) {
-  await page.addInitScript((hasThai) => {
+async function mockSpeech(page: Page, hasThai = true, microsoftName = '') {
+  await page.addInitScript(({hasThai, microsoftName}) => {
     const voices = [
       { voiceURI: 'en-test', name: 'English', lang: 'en-US', default: true, localService: true },
       ...(hasThai ? [
         { voiceURI: 'th-one', name: 'เสียงไทยหนึ่ง', lang: 'th-TH', default: false, localService: true },
         { voiceURI: 'th-two', name: 'เสียงไทยสอง', lang: 'th-TH', default: false, localService: true },
+        ...(microsoftName ? [{ voiceURI: 'premwadee-online', name: microsoftName, lang: 'th-TH', default: false, localService: false }] : []),
       ] : []),
     ];
     (window as any).__spoken = [];
@@ -20,7 +21,7 @@ async function mockSpeech(page: Page, hasThai = true) {
       (window as any).__spoken.push({ text: utterance.text, lang: utterance.lang, voiceURI: utterance.voice?.voiceURI, rate: utterance.rate });
     };
     window.speechSynthesis.cancel = () => { (window as any).__cancellations += 1; };
-  }, hasThai);
+  }, {hasThai,microsoftName});
   await page.goto('./');
   await page.getByRole('button', { name: 'ปรับการใช้งาน', exact: true }).first().click();
 }
@@ -105,3 +106,19 @@ test('an unavailable recorded question falls back once to Thai speech with the f
     { text: 'ปลา เริ่มต้นด้วยเสียงอะไร?', lang: 'th-TH', voiceURI: 'th-one', rate: 0.85 },
   ]);
 });
+
+for (const name of ['Microsoft เปรมวดี Online (Natural) - Thai (Thailand)', 'Microsoft Premwadee Online (Natural) - Thai (Thailand)']) {
+  test(`automatic Thai voice prefers ${name} and respects an explicit selection`, async ({page}) => {
+    await mockSpeech(page, true, name);
+    await expect(page.locator('#thai-voice option[value=""]')).toHaveText(`อัตโนมัติ · ${name}`);
+    await page.getByRole('button',{name:'ทดลองฟัง กอ ไก่',exact:true}).click();
+    expect(await page.evaluate(()=>(window as any).__spoken.at(-1).voiceURI)).toBe('premwadee-online');
+    await expect(page.getByRole('status').filter({hasText:`กำลังใช้เสียง ${name}`})).toBeVisible();
+    await page.getByLabel('เลือกเสียงภาษาไทย').selectOption('th-two');
+    await page.getByRole('button',{name:'ทดลองฟัง กอ ไก่',exact:true}).click();
+    expect(await page.evaluate(()=>(window as any).__spoken.at(-1).voiceURI)).toBe('th-two');
+    await page.getByLabel('เลือกเสียงภาษาไทย').selectOption('');
+    await page.getByRole('button',{name:'ทดลองฟัง กอ ไก่',exact:true}).click();
+    expect(await page.evaluate(()=>(window as any).__spoken.at(-1).voiceURI)).toBe('premwadee-online');
+  });
+}
