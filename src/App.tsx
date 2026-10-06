@@ -6,6 +6,7 @@ import { exportCsv, orderedOptions, percent, resultCategory, reviewItems, summar
 import type { Lesson, Observation, Session } from './types';
 import { useCloudAccount } from './useCloudAccount';
 import { markChanged, useLearningStore } from './useLearningStore';
+import { LearnerHistory } from './components/LearnerHistory';
 import { TeacherPanel } from './components/TeacherPanel';
 import { Icon } from './components/Icon';
 import { BookFriend, Illustration } from './components/Art';
@@ -171,6 +172,11 @@ export default function App() {
     setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === id ? markChanged({ ...s, observation: { attention: 'ยังไม่ได้สังเกต', reading: 'ยังไม่ได้ประเมิน', note: '', ...s.observation, [field]: value } }) : s) }));
   }
 
+  function requestLogout() {
+    if (store.cloud && store.pending) setConfirmLogout(true);
+    else void logout();
+  }
+
   async function logout() {
     try { await account.signOut(); setConfirmLogout(false); }
     catch (error) { setStorageMessage((error as Error).message); }
@@ -216,7 +222,7 @@ export default function App() {
     <div className={'workspace ' + (page === 'exercise' ? 'focused' : '')}>
       <header className="topbar">
         <div className="topbar-title">{page === 'exercise' ? <button className="text-button" onClick={() => setPause(true)}><Icon name="back" />พัก / กลับหน้าหลัก</button> : <><span className="mobile-brand">ReadTech</span><span className="desktop-kicker">ฝึกทีละคำ พัฒนาไปทีละขั้น</span></>}</div>
-        <div className="topbar-right">{store.cloud ? <><button className="learner-chip" onClick={()=>go('account')}><Icon name="shield" size={16}/>{account.student!.display_name}</button><span className="local-badge">{store.syncing?'กำลังส่งผล…':store.pending?`รอส่ง ${store.pending} รอบ`:store.syncMessage?'ยังโหลดผลกลางไม่ได้':data.sessions.length?'บันทึกกลางแล้ว':'พร้อมบันทึกกลาง'}</span></> : <span className="local-badge"><Icon name="shield" size={16}/>โหมดทดลอง · ข้อมูลอยู่ในเครื่องนี้</span>}<button className="settings-button" aria-label="ปรับการใช้งาน" onClick={() => page === 'exercise' ? setPause(true) : go('settings')}><Icon name={page === 'exercise' ? 'pause' : 'settings'} /></button><span className="avatar" aria-hidden="true">ร</span></div>
+        <div className="topbar-right">{store.cloud ? <><button className="learner-chip" onClick={()=>go('account')}><Icon name="shield" size={16}/>{account.student!.display_name}</button><span className="local-badge">{store.syncing?'กำลังส่งผล…':store.pending?`รอส่ง ${store.pending} รอบ`:store.syncMessage?'ยังโหลดผลกลางไม่ได้':data.sessions.length?'บันทึกกลางแล้ว':'พร้อมบันทึกกลาง'}</span></> : <span className="local-badge"><Icon name="shield" size={16}/>โหมดทดลอง · ข้อมูลอยู่ในเครื่องนี้</span>}<nav className="topbar-actions" aria-label="เมนูบัญชี"><button className="settings-button" aria-label="ปรับการใช้งาน" onClick={() => page === 'exercise' ? setPause(true) : go('settings')}><Icon name={page === 'exercise' ? 'pause' : 'settings'} /></button><button className="topbar-logout" onClick={requestLogout}><Icon name="lock" size={18}/><span>ออกจากระบบ</span></button></nav></div>
       </header>
       {storageMessage && <div className="storage-warning" role="alert"><Icon name="info" /><span>{storageMessage}</span><button className="text-button" onClick={exportResults}>ส่งออกผล</button></div>}
       {store.cloud && store.syncMessage && <div className="storage-warning" role="status"><Icon name="info"/><span>{store.syncMessage}</span><button className="text-button" onClick={()=>go('account')}>จัดการผล</button></div>}
@@ -229,7 +235,8 @@ export default function App() {
           </nav>
           {!canReport && <p id="teacher-report-help" className="teacher-report-help">เลือกผู้เรียนก่อนเปิดรายงาน</p>}
         </div>}
-        {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{account.selectStudent(s);go('home');}} onLogout={()=>store.cloud && store.pending ? setConfirmLogout(true) : void logout()} onSignedIn={role=>go(role==='teacher'?'account':'home')} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
+        {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{account.selectStudent(s);go('home');}} onLogout={requestLogout} onSignedIn={role=>go(role==='teacher'?'account':'home')} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
+        {page === 'account' && account.learner && store.cloud && <LearnerHistory sessions={data.sessions} lessons={lessons} onContinue={id=>start(id)} onLessons={()=>go('lessons')}/>}
         {page === 'home' && <>
 
           <div className="page-heading"><div><span className="eyebrow pink">เพื่อนฝึกอ่านของเธอ</span><h1 tabIndex={-1}>สวัสดี นักอ่านคนเก่ง <span className="hello-spark" aria-hidden="true">✦</span></h1><p>วันนี้มาค่อย ๆ เรียนรู้ไปด้วยกันนะ</p></div><span className="pill"><span className="status-dot"/>พร้อมเริ่มต้นเสมอ</span></div>

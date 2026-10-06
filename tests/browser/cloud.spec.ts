@@ -152,7 +152,7 @@ test('teacher reports require approved login and a selected learner on desktop a
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   }
   await openAccount(page);
-  await page.getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
+  await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
   await expect(page.getByRole('button',{name:'สำหรับครู',exact:true})).toHaveCount(0);
   await expect(page.getByRole('heading',{name:'เข้าสู่ระบบ',exact:true})).toBeVisible();
 });
@@ -242,7 +242,7 @@ test('a second browser resumes the central result and logout clears private cach
   await anotherPage.getByRole('button', { name: 'ข้อต่อไป', exact: true }).click();
   await expect(anotherPage.getByText('ข้อ 2 จาก 5', { exact: true })).toBeVisible();
   await secondContext.close();
-  await page.getByRole('button', { name: 'ออกจากระบบ', exact: true }).click();
+  await page.locator('.topbar').getByRole('button', { name: 'ออกจากระบบ', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'เข้าสู่ระบบ', exact: true })).toBeVisible();
   await expect.poll(async () => (await keys(page)).filter(k => k.startsWith('workspace:')).length).toBe(0);
   expect(await keys(page)).toContain('snapshot');
@@ -333,7 +333,7 @@ test('students independently practice concurrently in two browsers and teacher s
   expect(new Set([...backend.sessions.values()].map(s=>s.student_id))).toEqual(new Set([first,second]));
   await page.reload();await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await expect(page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true})).toBeVisible();
   await expect(page.locator('.stat-number').filter({hasText:'1 ดวง'})).toBeVisible();
-  await openAccount(page);await page.getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
+  await openAccount(page);await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
   await expect.poll(async()=>(await keys(page)).filter(k=>k.includes(pupil)).length).toBe(0);
   await login(page);await page.getByRole('button',{name:'เลือกผู้เรียน นักอ่านหนึ่ง',exact:true}).click();await expect(page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true})).toBeVisible();await openTeacherReport(page);
   await expect(page.getByText('รายงานของ นักอ่านหนึ่ง · RT001',{exact:true})).toBeVisible();
@@ -408,4 +408,83 @@ test('four-digit student ID retains leading zero in the login identity',async({p
  await expect(page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true})).toBeVisible();
  expect(identity).toBe('student-0123@students.readup.invalid');expect(password).toBe('RT-0123');
  await openAccount(page);await expect(page.getByText('เลขประจำตัว 0123 · ป.1/1',{exact:true})).toBeVisible();
+});
+
+test('top navigation logout works for teachers and learners across screen sizes',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);
+ for(const role of ['teacher','student']) {
+  for(const width of [1440,390,320]) {
+   backend.sessions.clear();
+   await page.setViewportSize({width,height:900});
+   if(role==='teacher')await login(page);else await studentLogin(page);
+   const topbar=page.locator('.topbar');
+   await expect(topbar.getByRole('button',{name:'ออกจากระบบ',exact:true})).toBeVisible();
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+   if(role==='student') {
+    await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
+    await expect(topbar.getByRole('button',{name:'ออกจากระบบ',exact:true})).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+   }
+   await topbar.getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
+   if(role==='student') {
+    const warning=page.getByRole('dialog',{name:'ยังมีผลในเครื่องรอส่ง',exact:true});
+    await expect(page.getByRole('heading',{name:'เข้าสู่ระบบ',exact:true}).or(warning)).toBeVisible();
+    if(await warning.isVisible())await warning.getByRole('button',{name:'ยืนยันออกจากระบบ',exact:true}).click();
+   }
+   await expect(page.getByRole('heading',{name:'เข้าสู่ระบบ',exact:true})).toBeVisible();
+   await expect(page.getByRole('navigation',{name:'เมนูบัญชี',exact:true})).toHaveCount(0);
+  }
+ }
+});
+
+test('top navigation logout preserves the pending-results warning and cancellation',async({page,context})=>{
+ const backend=mockBackend();backend.setFailWrites(true);await backend.install(context);
+ await studentLogin(page);await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
+ await page.getByRole('button',{name:'เลือก ก',exact:true}).click();
+ await expect(page.locator('.topbar')).toContainText('รอส่ง');
+ await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
+ await expect(page.getByRole('dialog',{name:'ยังมีผลในเครื่องรอส่ง',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'กลับไปส่งผล',exact:true}).click();
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'ข้อต่อไป',exact:true})).toBeVisible();
+ await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
+ await page.getByRole('button',{name:'ยืนยันออกจากระบบ',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'เข้าสู่ระบบ',exact:true})).toBeVisible();
+});
+
+test('learner account shows own practice history, stars and progress and can resume',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);await studentLogin(page);await openAccount(page);
+ const history=page.getByRole('region',{name:'ประวัติการฝึกของฉัน',exact:true});
+ await expect(history.getByRole('heading',{name:'ยังไม่มีประวัติการฝึก',exact:true})).toBeVisible();
+ await history.getByRole('button',{name:'เลือกบทเรียน',exact:true}).click();
+ await page.getByRole('button',{name:'เริ่มฝึก รู้จักพยัญชนะชุดแรก',exact:true}).click();
+ await page.getByRole('button',{name:'เลือก ก',exact:true}).click();
+ await page.locator('.topbar .learner-chip').click();
+ await expect(history).toContainText('รู้จักพยัญชนะชุดแรก');
+ await expect(history).toContainText('ทำไป 1 / 5 ข้อ');
+ await expect(history.locator('.practice-stars')).toHaveText('1 ดวง');
+ await expect(history).toContainText('กำลังฝึก');
+ for(const width of [1440,390,320]) {
+  await page.setViewportSize({width,height:900});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ }
+ await history.getByRole('button',{name:'ฝึกต่อ',exact:true}).click();
+ await expect(page.getByRole('button',{name:'เลือก ก',exact:true})).toBeDisabled();
+ const lesson=curriculum.lessons.find(l=>l.id===1)!;
+ for(let i=1;i<lesson.questions.length;i++) {
+  await page.getByRole('button',{name:'ข้อต่อไป',exact:true}).click();
+  await page.getByRole('button',{name:`เลือก ${lesson.questions[i].letter}`,exact:true}).click();
+ }
+ await page.getByRole('button',{name:'ดูรางวัลของฉัน',exact:true}).click();await openAccount(page);
+ await expect(history).toContainText('ฝึกครบแล้ว');await expect(history.locator('.practice-stars')).toHaveText('5 ดวง');
+ await expect(history.getByRole('button',{name:'ฝึกต่อ',exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'ส่งผลตอนนี้',exact:true}).click();
+ await expect(page.locator('.topbar .local-badge')).toHaveText('บันทึกกลางแล้ว');
+ await page.reload();await expect(page.getByRole('button',{name:'บัญชีของฉัน',exact:true})).toBeVisible();await openAccount(page);await expect(history).toContainText('ฝึกครบแล้ว');
+ await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+ const violations=await page.evaluate(async()=>(await (window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>v.id));expect(violations).toEqual([]);
+ await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
+ await studentLogin(page,'9876543210');await openAccount(page);await expect(history).toContainText('ยังไม่มีประวัติการฝึก');
+ await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
+ await login(page);await expect(history).toHaveCount(0);
 });
