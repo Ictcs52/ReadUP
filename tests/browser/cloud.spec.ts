@@ -745,7 +745,7 @@ test('registration and editing use the same six master grade choices and preserv
  await registration.getByRole('button',{name:'บันทึกผู้เรียน',exact:true}).click();
  expect(backend.requests.filter(path=>path==='/functions/v1/readtech-student-accounts').length).toBe(before);
  await grade.selectOption('ป.6');await registration.getByRole('button',{name:'บันทึกผู้เรียน',exact:true}).click();
- await expect(page.locator('.roster-row')).toContainText('ป.6');expect(backend.students.find(s=>s.code==='0003')?.class_name).toBe('ป.6');
+ await expect(page.locator('.roster-row').filter({hasText:'0003'})).toContainText('ป.6');expect(backend.students.find(s=>s.code==='0003')?.class_name).toBe('ป.6');
  await page.getByRole('button',{name:'ล้างตัวกรอง',exact:true}).click();
  await page.getByRole('button',{name:'จัดการบัญชี นักอ่านหนึ่ง',exact:true}).click();await page.getByRole('button',{name:'แก้ไขข้อมูล',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'แก้ไขข้อมูลผู้เรียน',exact:true});const editGrade=dialog.getByRole('combobox',{name:'ชั้น',exact:true});
@@ -800,4 +800,12 @@ test.describe('reading progress in a Thai calendar',()=>{
   await panel.getByLabel('ตั้งแต่วันที่',{exact:true}).fill('2026-10-10');await expect(progress).toContainText('ไม่มีบันทึกในช่วงวันที่เลือก');
   await page.getByRole('combobox',{name:'ผู้เรียนที่ต้องการดูรายงาน',exact:true}).selectOption(second);await expect(page.getByRole('region',{name:'บันทึกการอ่านของ นักอ่านสอง',exact:true})).toContainText('ยังไม่มีบันทึกการอ่าน');await expect(progress).toHaveCount(0);
  });
+});
+
+test('reward days and coins follow one learner across devices and do not leak into another account',async({page,context,browser})=>{
+ const backend=mockBackend();await backend.install(context);await studentLogin(page);await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();await page.getByRole('button',{name:'ช่วยทีละนิด',exact:true}).click();await page.getByRole('button',{name:'เลือก ก',exact:true}).click();await expect(page.getByText('เก่งมาก! ใช้ตัวช่วยแล้วทำได้ ได้ 1 ดาว',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'นักอ่านหนึ่ง',exact:true}).click();await page.getByRole('button',{name:'ส่งผลตอนนี้',exact:true}).click();await expect.poll(()=>[...backend.sessions.values()][0]?.payload.records.length).toBe(1);expect(typeof [...backend.sessions.values()][0].payload.records[0].answeredAt).toBe('number');
+ const device=await browser.newContext();try{await backend.install(device);const otherPage=await device.newPage();await studentLogin(otherPage);await otherPage.getByRole('button',{name:'รางวัลของฉัน',exact:true}).click();await expect(otherPage.locator('.reward-totals dd').nth(1)).toHaveText('1 / 5 เหรียญ');await expect(otherPage.locator('.reward-totals dd').nth(2)).toHaveText('1 วัน');
+ await otherPage.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();await studentLogin(otherPage,'9876543210');await otherPage.getByRole('button',{name:'รางวัลของฉัน',exact:true}).click();await expect(otherPage.locator('.reward-totals dd').nth(1)).toHaveText('0 / 5 เหรียญ');await expect(otherPage.locator('.reward-totals dd').nth(2)).toHaveText('0 วัน');
+ }finally{await device.close();}
 });

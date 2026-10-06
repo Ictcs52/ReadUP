@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import curriculum from './data/lessons.json';
 import { defaultData } from './storage';
+import { answerPraise, practiceRewards } from './rewardsDomain.mjs';
+import { RewardsPanel } from './components/RewardsPanel';
 import { breakDue, practiceElapsed } from './practiceTime.mjs';
 import { exportCsv, orderedOptions, percent, resultCategory, reviewItems, summarize } from './domain.mjs';
 import type { Lesson, Observation, Session } from './types';
@@ -159,10 +161,10 @@ export default function App() {
     stopLessonAudio();
     setChosen(value);
     if (value === question.letter) {
-      setFeedback('ทำได้แล้ว! ได้ 1 ดาว');
+      setFeedback(answerPraise(current.wrongAttempts,current.hintLevel));
       setCelebrating(true);
       if (data.settings.sound && data.settings.effectsSound) playFeedbackSound('success');
-      updateSession(s => ({ ...s, answered: true, records: [...s.records, { questionIndex: s.questionIndices[s.index], letter: question.letter, word: question.word, category: resultCategory(s.wrongAttempts, s.hintLevel), wrongAttempts: s.wrongAttempts, hintLevel: s.hintLevel, activeMs: s.currentMs }] }));
+      updateSession(s => ({ ...s, answered: true, records: [...s.records, { questionIndex: s.questionIndices[s.index], letter: question.letter, word: question.word, category: resultCategory(s.wrongAttempts, s.hintLevel), wrongAttempts: s.wrongAttempts, hintLevel: s.hintLevel, activeMs: s.currentMs, answeredAt: Date.now() }] }));
     } else {
       setFeedback('ค่อย ๆ ดู แล้วลองอีกครั้งนะ ใช้ปุ่มช่วยได้');
       updateSession(s => ({ ...s, wrongAttempts: s.wrongAttempts + 1 }));
@@ -171,7 +173,7 @@ export default function App() {
   function skip() {
     if (!current || !question || current.answered) return;
     setFeedback('เก็บข้อนี้ไว้ฝึกอีกครั้งได้เสมอ');
-    updateSession(s => ({ ...s, answered: true, records: [...s.records, { questionIndex: s.questionIndices[s.index], letter: question.letter, word: question.word, category: 'skipped', wrongAttempts: s.wrongAttempts, hintLevel: s.hintLevel, activeMs: s.currentMs }] }));
+    updateSession(s => ({ ...s, answered: true, records: [...s.records, { questionIndex: s.questionIndices[s.index], letter: question.letter, word: question.word, category: 'skipped', wrongAttempts: s.wrongAttempts, hintLevel: s.hintLevel, activeMs: s.currentMs, answeredAt: Date.now() }] }));
   }
   function next() {
     if (!current || !current.answered) return;
@@ -314,12 +316,11 @@ export default function App() {
           <p className="exercise-footer"><Icon name="heart" size={17}/>ไม่มีการจับเวลาแข่งขัน · พักได้ทุกเมื่อ</p>
         </div>}
 
-        {page === 'result' && canPractice && current && lesson && <section className="result-card"><div className="reward-medal"><Icon name="star" size={54}/></div><span className="eyebrow pink">ขอบคุณที่ตั้งใจฝึก</span><h1 tabIndex={-1}>ทำกิจกรรมครบแล้ว!</h1><p>{lesson.title}</p><div className="result-stars" aria-hidden="true">{'★'.repeat(current.records.filter(r=>r.category!=='skipped').length)}</div><div className="result-summary"><strong>{current.records.filter(r=>r.category!=='skipped').length} ดาว</strong><span>จากกิจกรรมที่ทำได้ในรอบนี้</span></div><p>ทุกครั้งที่ลอง คือก้าวเล็ก ๆ ที่สำคัญ<br/>อยากพัก หรือกลับมาฝึกอีกครั้งก็ได้</p><div className="result-actions"><button className="primary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button><button className="secondary" onClick={()=>start(lesson.id)}>ฝึกอีกครั้ง<Icon name="replay"/></button></div><p className="fine-print">ดาวแสดงการทำกิจกรรม ไม่ใช่ผลประเมินการอ่านออกเสียง</p></section>}
+        {page === 'result' && canPractice && current && lesson && <section className="result-card"><div className="reward-medal"><Icon name="star" size={54}/></div><span className="eyebrow pink">ขอบคุณที่ตั้งใจฝึก</span><h1 tabIndex={-1}>ทำกิจกรรมครบแล้ว!</h1><p>{lesson.title}</p><div className="result-stars" aria-hidden="true">{'★'.repeat(current.records.filter(r=>r.category!=='skipped').length)}</div><div className="result-summary"><strong>{current.records.filter(r=>r.category!=='skipped').length} ดาว</strong><span>จากกิจกรรมที่ทำได้ในรอบนี้</span></div><div className="result-earned"><p><Icon name="coin" size={18}/>สะสมเหรียญภารกิจ {practiceRewards(data.sessions,lessons).coins} เหรียญ</p>{practiceRewards([current],lessons).trophies.some(t=>t.id===lesson.id&&t.earned)&&<p><Icon name="trophy" size={18}/>เก็บถ้วยประจำบทนี้แล้ว · บทละ 1 ใบ</p>}</div><p>ทุกครั้งที่ลอง คือก้าวเล็ก ๆ ที่สำคัญ<br/>อยากพัก หรือกลับมาฝึกอีกครั้งก็ได้</p><div className="result-actions"><button className="primary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button><button className="secondary" onClick={()=>start(lesson.id)}>ฝึกอีกครั้ง<Icon name="replay"/></button></div><button className="text-button result-rewards-link" onClick={()=>go('rewards')}>ดูรางวัลที่สะสม<Icon name="arrow" size={18}/></button><p className="fine-print">ดาวแสดงการทำกิจกรรม ไม่ใช่ผลประเมินการอ่านออกเสียง</p></section>}
 
         {page === 'rewards' && <>
           <div className="page-heading"><div><span className="eyebrow pink">เก็บความภูมิใจไว้ด้วยกัน</span><h1 tabIndex={-1}>รางวัลของฉัน</h1><p>ไม่มีการหักดาว และไม่ต้องแข่งกับใคร</p></div></div>
-          <section className="reward-banner"><BookFriend/><div><h2>ความพยายามของเธอมีค่าเสมอ</h2><p>ฝึกไปแล้ว {completed.length} ช่วง · เก็บดาวได้ {total.independent+total.retried+total.assisted} ดวง</p></div></section>
-          <div className="badge-grid">{[{name:'ก้าวแรกของฉัน',icon:'leaf',got:data.sessions.length>0,detail:'เริ่มกิจกรรมครั้งแรก'},{name:'ตั้งใจจนจบ',icon:'book',got:completed.length>0,detail:'ทำครบหนึ่งช่วงฝึก'},{name:'นักฝึกตัวอักษร',icon:'letters',got:completedLessons.size>=3,detail:'ทำครบ 3 บทเรียน'},{name:'กลับมาลองอีกครั้ง',icon:'replay',got:completed.some(s=>completed.filter(t=>t.lessonId===s.lessonId).length>=2),detail:'ฝึกบทเดิมครบมากกว่า 1 รอบ'}].map(b=><article className={'badge-card '+(!b.got?'not-yet':'')} key={b.name}><span className="badge-symbol"><Icon name={b.icon} size={38}/></span><h2>{b.name}</h2><p>{b.detail}</p><span className="badge-state">{b.got?'ได้รับแล้ว':'ค่อย ๆ สะสมได้'}</span></article>)}</div>
+          <RewardsPanel sessions={data.sessions} lessons={lessons}/>
         </>}
 
         {page === 'report' && canOpenReport && <>
