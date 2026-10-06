@@ -103,6 +103,39 @@ test('pause is keyboard dismissible and paused time is not counted',async({page}
   await expect(page.getByRole('dialog')).not.toBeVisible();
 });
 
+test('exercise controls offer retry only after a wrong answer and returning home preserves progress and credit',async({page})=>{
+  await home(page);await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
+  const controls=page.getByRole('group',{name:'ปุ่มควบคุมแบบฝึก',exact:true});
+  await expect(controls.getByRole('button',{name:'ฟังตัวอย่าง',exact:true})).toBeVisible();await expect(controls.getByRole('button',{name:'ช่วยทีละนิด',exact:true})).toBeVisible();
+  await expect(controls.getByRole('button',{name:'ลองใหม่',exact:true})).toHaveCount(0);await expect(controls.getByRole('button',{name:'ข้อต่อไป',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'เลือก ม',exact:true}).click();await controls.getByRole('button',{name:'ลองใหม่',exact:true}).click();
+  await expect(page.getByRole('button',{name:'เลือก ม',exact:true})).toHaveAttribute('aria-pressed','false');await expect(controls.getByRole('button',{name:'ลองใหม่',exact:true})).toHaveCount(0);
+  await expect.poll(async()=>(await snapshot(page)).sessions[0].wrongAttempts).toBe(1);expect((await snapshot(page)).sessions[0].records).toHaveLength(0);
+  await page.getByRole('button',{name:'เลือก ก',exact:true}).click();await expect(controls.getByRole('button',{name:'ข้อต่อไป',exact:true})).toBeFocused();await expect(controls.getByRole('button',{name:'ช่วยทีละนิด',exact:true})).toHaveCount(0);
+  const before=(await snapshot(page)).sessions[0];expect(before.records).toHaveLength(1);expect(before.records[0].category).toBe('retried');expect(before.records[0].wrongAttempts).toBe(1);
+  await page.getByRole('button',{name:'กลับหน้าแรก',exact:true}).click();await expect(page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();await expect(page.getByRole('button',{name:'เลือก ก',exact:true})).toBeDisabled();
+  expect((await snapshot(page)).sessions[0].id).toBe(before.id);expect((await snapshot(page)).sessions[0].records).toHaveLength(1);
+  await controls.getByRole('button',{name:'ข้อต่อไป',exact:true}).click();await expect(page.getByText('ข้อ 2 จาก 5',{exact:true})).toBeVisible();await expect(controls.getByRole('button',{name:'ช่วยทีละนิด',exact:true})).toBeVisible();
+});
+
+test('retry clears a tap-to-match selection without erasing the assistance level or adding a record',async({page})=>{
+  await home(page);await page.getByRole('button',{name:'บทเรียนของฉัน',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก จับคู่รูปเหมือน',exact:true}).click();
+  await page.getByRole('button',{name:'เลือก ร',exact:true}).click();const slot=page.getByRole('button',{name:'วางตัวอักษรที่เลือกลงช่องจับคู่',exact:true});await slot.click();
+  await page.getByRole('button',{name:'ช่วยทีละนิด',exact:true}).click();await page.getByRole('button',{name:'ลองใหม่',exact:true}).click();await expect(slot).toBeDisabled();await expect(page.getByText('ตัวช่วย 1/3',{exact:true})).toBeVisible();
+  await expect.poll(async()=>(await snapshot(page)).sessions[0].hintLevel).toBe(1);expect((await snapshot(page)).sessions[0].wrongAttempts).toBe(1);expect((await snapshot(page)).sessions[0].records).toHaveLength(0);
+  await page.getByRole('button',{name:'เลือก ม',exact:true}).click();await slot.click();await expect.poll(async()=>(await snapshot(page)).sessions[0].records.length).toBe(1);expect((await snapshot(page)).sessions[0].records[0].category).toBe('assisted');
+});
+
+test('bottom exercise controls fit small screens with enlarged text and remain accessible before and after answering',async({page})=>{
+  await home(page);await page.getByRole('button',{name:'ปรับการใช้งาน',exact:true}).first().click();await page.getByRole('checkbox',{name:/ตัวหนังสือใหญ่ขึ้น/}).check();await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
+  await page.getByRole('button',{name:'เลือก ม',exact:true}).click();
+  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await expect(page.getByRole('button',{name:'ลองใหม่',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'กลับหน้าแรก',exact:true})).toBeVisible();}
+  await page.screenshot({path:'test-results/exercise-controls-mobile.png',fullPage:true});await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+  const scan=()=>page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>({id:v.id,nodes:v.nodes.map((n:any)=>({target:n.target,failureSummary:n.failureSummary}))})));
+  expect(await scan()).toEqual([]);await page.getByRole('button',{name:'ลองใหม่',exact:true}).click();await page.getByRole('button',{name:'เลือก ก',exact:true}).click();await expect(page.getByRole('button',{name:'ข้อต่อไป',exact:true})).toBeVisible();expect(await scan()).toEqual([]);
+});
+
 test('planned levels never present incomplete lessons as playable',async({page})=>{
   await home(page);
   await page.getByRole('button',{name:'บทเรียนของฉัน',exact:true}).click();
