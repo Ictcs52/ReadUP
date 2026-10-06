@@ -22,6 +22,8 @@ function mockBackend() {
   ];
   const sessions = new Map<string, any>();
   const readings = new Map<string, any>();
+  const preposts = new Map<string, any>();
+  let failPrepost = false;
   let failReadingWrites = false;
   let failWrites = false;
   const requests: string[] = [];
@@ -66,6 +68,23 @@ function mockBackend() {
         if (body.action==='enable') s.login_enabled=true;
         return route.fulfill({json:{student:s,loginId:s.login_id,password:['disable','enable'].includes(body.action)?'':`RT-${s.login_id}`}});
       }
+      if (url.pathname === '/rest/v1/readtech_prepost_assessments') {
+        const studentId=url.searchParams.get('student_id')?.replace('eq.',''),id=url.searchParams.get('id')?.replace('eq.','');
+        if(request.method()==='GET')return route.fulfill({json:[...preposts.values()].filter(row=>row.teacher_id===uid&&(!studentId||row.student_id===studentId)&&(!id||row.id===id))});
+        if(failPrepost)return route.fulfill({status:503,json:{message:'Unavailable'}});
+        if(uid!==owner)return route.fulfill({status:403,json:{code:'42501'}});
+        if(request.method()==='POST'){
+          if(preposts.has(body.id))return route.fulfill({status:409,json:{code:'23505'}});
+          const value={...body,pre:null,post:null,revision:1,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};preposts.set(value.id,value);return route.fulfill({status:201,json:value});
+        }
+        if(request.method()==='PATCH'){
+          const old=preposts.get(id!);const revision=Number(url.searchParams.get('revision')?.replace('eq.',''));
+          if(!old||old.student_id!==studentId||old.teacher_id!==uid||old.revision!==revision)return route.fulfill({json:null});
+          const value={...old,...body,revision:old.revision+1,updated_at:new Date().toISOString()};
+          if(body.pre&&JSON.stringify(body.pre)!==JSON.stringify(old.pre)&&value.post)value.post={...value.post,comparable:false};
+          preposts.set(old.id,value);return route.fulfill({json:value});
+        }
+      }
       if (url.pathname === '/rest/v1/readtech_reading_assessments') {
         const studentId=url.searchParams.get('student_id')?.replace('eq.','');
         const id=url.searchParams.get('id')?.replace('eq.','');
@@ -97,7 +116,7 @@ function mockBackend() {
       return route.fulfill({ status: 404, json: { message: 'Unexpected endpoint' } });
     });
   }
-  return { install, students, sessions, readings, requests, setFailReadingWrites:(value:boolean)=>{failReadingWrites=value;}, setFailWrites: (value: boolean) => { failWrites = value; } };
+  return { install, students, sessions, readings, preposts, requests, setFailPrepost:(value:boolean)=>{failPrepost=value;}, setFailReadingWrites:(value:boolean)=>{failReadingWrites=value;}, setFailWrites: (value: boolean) => { failWrites = value; } };
 }
 async function openAccount(page: Page) {
   const menu=page.getByRole('button', { name: /^(สำหรับครู|บัญชีของฉัน)$/ });
@@ -808,4 +827,41 @@ test('reward days and coins follow one learner across devices and do not leak in
  const device=await browser.newContext();try{await backend.install(device);const otherPage=await device.newPage();await studentLogin(otherPage);await otherPage.getByRole('button',{name:'รางวัลของฉัน',exact:true}).click();await expect(otherPage.locator('.reward-totals dd').nth(1)).toHaveText('1 / 5 เหรียญ');await expect(otherPage.locator('.reward-totals dd').nth(2)).toHaveText('1 วัน');
  await otherPage.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();await studentLogin(otherPage,'9876543210');await otherPage.getByRole('button',{name:'รางวัลของฉัน',exact:true}).click();await expect(otherPage.locator('.reward-totals dd').nth(1)).toHaveText('0 / 5 เหรียญ');await expect(otherPage.locator('.reward-totals dd').nth(2)).toHaveText('0 วัน');
  }finally{await device.close();}
+});
+
+async function makeAssessment(page:Page,panel:ReturnType<Page['getByRole']>,name='ชุดคำ A'){
+ await panel.getByRole('button',{name:'สร้างชุดประเมิน',exact:true}).click();const form=panel.getByRole('form',{name:'สร้างชุดประเมิน',exact:true});await form.getByLabel('ชื่อชุดประเมิน',{exact:true}).fill(name);
+ for(let i=1;i<=5;i++){await form.getByLabel(`คะแนนเต็มด้านที่ ${i}`,{exact:true}).fill('10');await form.getByLabel(`วิธีประเมินด้านที่ ${i}`,{exact:true}).fill('สิบข้อ ข้อละหนึ่งคะแนน');}
+ await form.getByRole('button',{name:'บันทึกเกณฑ์และสร้างชุด',exact:true}).click();await expect(form).toHaveCount(0);
+}
+async function fillPhase(form:ReturnType<Page['getByRole']>,post=false){
+ await form.getByLabel('วันเวลาประเมิน',{exact:true}).fill(post?'2026-10-08T09:00':'2026-10-07T09:00');await form.getByLabel('ชุดคำหรือแบบประเมินที่ใช้',{exact:true}).fill('ชุดคำ A');
+ for(let i=1;i<=5;i++)await form.getByLabel(`คะแนนด้านที่ ${i}`,{exact:true}).fill(post?'8':'5');await form.getByLabel('ความช่วยเหลือในการประเมิน',{exact:true}).selectOption('prompted');
+}
+test('paired assessments keep immutable criteria, compare confirmed scores, export CSV and invalidate confirmation after correction',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);await login(page);await selectFirst(page);const panel=page.getByRole('region',{name:'ประเมินก่อน–หลังของ นักอ่านหนึ่ง',exact:true});
+ await makeAssessment(page,panel);await expect(panel.getByRole('button',{name:'บันทึกผลหลังฝึก',exact:true})).toBeDisabled();await panel.getByRole('button',{name:'บันทึกผลก่อนฝึก',exact:true}).click();let form=panel.getByRole('form',{name:'ก่อนฝึก (Pre-test)',exact:true});await fillPhase(form);await form.getByLabel('จำนวนคำอ่านถูก',{exact:true}).fill('7');await form.getByLabel('จำนวนคำอ่านผิด',{exact:true}).fill('3');await form.getByLabel('หมายเหตุการประเมิน',{exact:true}).fill('=SUM(A1:A5)');await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form).toHaveCount(0);
+ await panel.getByRole('button',{name:'บันทึกผลหลังฝึก',exact:true}).click();form=panel.getByRole('form',{name:'หลังฝึก (Post-test)',exact:true});await fillPhase(form,true);await form.getByLabel('จำนวนคำอ่านถูก',{exact:true}).fill('8');await form.getByLabel('จำนวนคำอ่านผิด',{exact:true}).fill('2');await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form).toHaveCount(0);
+ await expect(panel.getByText('ผลต่างจะแสดงเมื่อมีผลครบก่อน–หลังและครูยืนยันว่าเทียบกันได้',{exact:true})).toBeVisible();await expect(panel.locator('tbody tr')).toHaveCount(5);expect([...backend.preposts.values()][0].post.comparable).toBe(false);
+ await panel.getByRole('button',{name:'แก้ไขผลหลังฝึก',exact:true}).click();form=panel.getByRole('form',{name:'หลังฝึก (Post-test)',exact:true});await form.getByRole('checkbox').check();await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form).toHaveCount(0);await expect(panel.locator('tbody tr').first().locator('td').last()).toContainText('+30');await expect(panel.getByText('80.00% · ถึงเป้าหมาย 80%',{exact:true})).toBeVisible();
+ const download=page.waitForEvent('download');await panel.getByRole('button',{name:'ส่งออกก่อน–หลัง CSV',exact:true}).click();const file=await download;expect(file.suggestedFilename()).toBe('prepost-RT001.csv');const csv=await readFile((await file.path())!,'utf8');expect(csv).toContain('"30.00"');expect(csv).toContain("'=SUM(A1:A5)");expect(csv).toContain('ความเข้าใจจากการอ่าน คะแนนเต็ม');
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+ await page.screenshot({path:'test-results/prepost-comparison-mobile.png',fullPage:true});await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});expect(await page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>({id:v.id,nodes:v.nodes.map((n:any)=>n.target)})))).toEqual([]);
+ await panel.getByRole('button',{name:'แก้ไขผลก่อนฝึก',exact:true}).click();form=panel.getByRole('form',{name:'ก่อนฝึก (Pre-test)',exact:true});await form.getByLabel('คะแนนด้านที่ 1',{exact:true}).fill('4');await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form).toHaveCount(0);expect([...backend.preposts.values()][0].post.comparable).toBe(false);await expect(panel.locator('tbody tr').first().locator('td').last()).toHaveText('—');
+ await page.getByRole('combobox',{name:'ผู้เรียนที่ต้องการดูรายงาน',exact:true}).selectOption(second);await expect(page.getByRole('region',{name:'ประเมินก่อน–หลังของ นักอ่านสอง',exact:true})).toContainText('ยังไม่มีชุดประเมิน');await expect(panel).toHaveCount(0);
+});
+
+test('assessment failures retain inputs, dates are ordered and stale changes require a reload',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);await login(page);await selectFirst(page);const panel=page.getByRole('region',{name:'ประเมินก่อน–หลังของ นักอ่านหนึ่ง',exact:true});await makeAssessment(page,panel);await panel.getByRole('button',{name:'บันทึกผลก่อนฝึก',exact:true}).click();let form=panel.getByRole('form',{name:'ก่อนฝึก (Pre-test)',exact:true});await fillPhase(form);backend.setFailPrepost(true);await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form.getByRole('alert')).toContainText('ข้อมูลที่กรอกยังอยู่');await expect(form.getByLabel('คะแนนด้านที่ 1',{exact:true})).toHaveValue('5');backend.setFailPrepost(false);await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form).toHaveCount(0);
+ await panel.getByRole('button',{name:'บันทึกผลหลังฝึก',exact:true}).click();form=panel.getByRole('form',{name:'หลังฝึก (Post-test)',exact:true});await fillPhase(form,true);await form.getByLabel('วันเวลาประเมิน',{exact:true}).fill('2026-10-06T09:00');await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form.getByRole('alert')).toContainText('วันประเมินหลังฝึก');await form.getByLabel('วันเวลาประเมิน',{exact:true}).fill('2026-10-08T09:00');
+ const record=[...backend.preposts.values()][0];record.revision++;record.pre.scores[0]=3;await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form.getByRole('alert')).toContainText('ชุดนี้เปลี่ยนจากอีกเครื่อง');expect(record.post).toBeNull();await form.getByRole('button',{name:'โหลดชุดประเมินล่าสุด',exact:true}).click();await expect(form).toHaveCount(0);await expect(panel.locator('tbody tr').first().locator('td').first()).toContainText('3');
+ await panel.getByRole('button',{name:'บันทึกผลหลังฝึก',exact:true}).click();form=panel.getByRole('form',{name:'หลังฝึก (Post-test)',exact:true});await fillPhase(form,true);for(const width of [390,320]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}await page.screenshot({path:'test-results/prepost-form-mobile.png',fullPage:true});await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});expect(await page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>({id:v.id,nodes:v.nodes.map((n:any)=>n.target)})))).toEqual([]);
+});
+
+test('lost assessment creation and phase-save responses can be retried without duplicate sets or overwrites',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);await login(page);await selectFirst(page);let lostCreate=true,lostPhase=true;await context.route('https://readtechtest.supabase.co/rest/v1/readtech_prepost_assessments**',route=>{
+ const req=route.request(),body=req.postDataJSON();if(req.method()==='POST'&&lostCreate){lostCreate=false;backend.preposts.set(body.id,{...body,pre:null,post:null,revision:1,created_at:new Date().toISOString(),updated_at:new Date().toISOString()});return route.fulfill({status:503,json:{message:'Response lost'}});}
+ if(req.method()==='PATCH'&&lostPhase){lostPhase=false;const id=new URL(req.url()).searchParams.get('id')!.replace('eq.',''),old=backend.preposts.get(id);backend.preposts.set(id,{...old,...body,revision:old.revision+1});return route.fulfill({status:503,json:{message:'Response lost'}});}return route.fallback();});
+ const panel=page.getByRole('region',{name:'ประเมินก่อน–หลังของ นักอ่านหนึ่ง',exact:true});await panel.getByRole('button',{name:'สร้างชุดประเมิน',exact:true}).click();let form=panel.getByRole('form',{name:'สร้างชุดประเมิน',exact:true});await form.getByLabel('ชื่อชุดประเมิน',{exact:true}).fill('ชุด A');for(let i=1;i<=5;i++){await form.getByLabel(`คะแนนเต็มด้านที่ ${i}`,{exact:true}).fill('10');await form.getByLabel(`วิธีประเมินด้านที่ ${i}`,{exact:true}).fill('สิบข้อ');}await form.getByRole('button',{name:'บันทึกเกณฑ์และสร้างชุด',exact:true}).click();await expect(form.getByRole('alert')).toBeVisible();await form.getByRole('button',{name:'บันทึกเกณฑ์และสร้างชุด',exact:true}).click();await expect(form).toHaveCount(0);expect(backend.preposts.size).toBe(1);
+ await panel.getByRole('button',{name:'บันทึกผลก่อนฝึก',exact:true}).click();form=panel.getByRole('form',{name:'ก่อนฝึก (Pre-test)',exact:true});await fillPhase(form);await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form.getByRole('alert')).toBeVisible();await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form).toHaveCount(0);expect([...backend.preposts.values()][0].revision).toBe(2);
 });

@@ -386,3 +386,15 @@ dialog { width: min(500px,calc(100% - 32px)); border: 1px solid #efd7e3; border-
  .reward-totals { gap:8px; }.reward-totals>div { padding:12px 8px; }.reward-totals dt { flex-direction:column; font-size:12px; gap:4px; align-items:start; }.reward-totals dd { font-size:24px; }.reward-totals small { display:block; font-size:11px; }
  .practice-streak { padding:16px 12px; }.streak-week { gap:5px; grid-template-columns:repeat(4,minmax(0,1fr)); }.trophy-grid { grid-template-columns:1fr; }
 }
+
+.prepost-panel { margin-top:24px; }.prepost-label { display:grid; gap:8px; font-size:14px; font-weight:500; margin:16px 0; min-width:0; }
+.prepost-label input,.prepost-label select { width:100%; min-width:0; max-width:100%; min-height:48px; padding:10px 12px; border:1px solid #d8beca; border-radius:10px; background:white; color:#352735; font:inherit; font-size:16px; }
+.prepost-criterion { padding:14px 0; border-bottom:1px solid #e5d5df; }.prepost-criterion h3 { font-size:16px; }.prepost-criterion .prepost-label { margin-bottom:8px; }
+.prepost-confirm { display:flex; align-items:start; gap:10px; margin:20px 0; font-size:14px; }.prepost-confirm input { flex-shrink:0; width:20px; height:20px; margin-top:3px; accent-color:#9e1854; }
+.prepost-actions { margin:16px 0 24px; flex-wrap:wrap; }.prepost-table-wrap { overflow-x:auto; margin:16px 0; max-width:100%; border:1px solid #e5d5df; border-radius:12px; }
+.prepost-table { width:100%; min-width:510px; border-collapse:collapse; font-size:14px; }.prepost-table caption { padding:12px; font-weight:600; text-align:left; background:#fff8fb; }.prepost-table th,.prepost-table td { padding:12px; border-bottom:1px solid #e5d5df; text-align:left; }.prepost-table tbody th { max-width:200px; }.prepost-table small { display:block; font-size:12px; font-weight:400; color:#6b4459; margin-top:4px; }.prepost-table thead { background:#f6eaf0; }
+.prepost-context { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }.prepost-context article { padding:16px; background:#fff8fb; border:1px solid #e5d5df; border-radius:12px; font-size:14px; overflow-wrap:anywhere; }.prepost-context h4 { margin:0 0 12px; }.prepost-context dl>div { display:flex; justify-content:space-between; gap:12px; margin-bottom:8px; }.prepost-context dd { margin:0; text-align:right; }.prepost-context dt { color:#6b4459; }
+@media(max-width:550px) { .prepost-context { grid-template-columns:1fr; }.prepost-actions .secondary { flex:1 1 100%; }.prepost-table-wrap { font-size:13px; } }
+
+.prepost-scroll-hint { display:none; }
+@media(max-width:550px) { .prepost-scroll-hint { display:block; } }
