@@ -19,8 +19,7 @@ const nav = [
   { id: 'home', text: 'หน้าหลัก', icon: 'home' },
   { id: 'lessons', text: 'บทเรียนของฉัน', icon: 'book' },
   { id: 'rewards', text: 'รางวัลของฉัน', icon: 'star' },
-  { id: 'report', text: 'สำหรับครู', icon: 'chart' },
-  { id: 'account', text: 'ผู้เรียน', icon: 'shield' }
+  { id: 'account', text: 'สำหรับครู', icon: 'shield' }
 ] as const;
 
 function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
@@ -210,7 +209,7 @@ export default function App() {
       <button className="brand" onClick={() => go('home')} aria-label="ReadTech Companion หน้าหลัก"><span className="brand-mark"><Icon name="book" size={27} /></span><span>ReadTech<small>COMPANION</small></span></button>
       <div className="sidebar-line" />
       <p className="nav-label">พื้นที่ของฉัน</p>
-      <nav aria-label="เมนูหลัก">{nav.filter(n => !account.learner || n.id !== 'report').map(n => <button key={n.id} className={'nav-item ' + (page === n.id ? 'active' : '')} aria-current={page === n.id ? 'page' : undefined} onClick={() => go(n.id)}><Icon name={n.icon} /><span>{n.id==='account'&&account.learner?'บัญชีของฉัน':n.text}</span>{page === n.id && <i />}</button>)}</nav>
+      <nav aria-label="เมนูหลัก">{nav.map(n => <button key={n.id} className={'nav-item ' + ((page === n.id || (n.id === 'account' && page === 'report')) ? 'active' : '')} aria-current={(page === n.id || (n.id === 'account' && page === 'report')) ? 'page' : undefined} onClick={() => go(n.id)}><Icon name={n.icon} /><span>{n.id==='account'&&account.learner?'บัญชีของฉัน':n.text}</span>{(page === n.id || (n.id === 'account' && page === 'report')) && <i />}</button>)}</nav>
       <div className="sidebar-bottom"><div className="gentle-note"><Icon name="heart" /><p>ไม่ต้องรีบก็ได้<br/><strong>เติบโตในจังหวะของเรา</strong></p></div><button className="nav-item" onClick={() => go('settings')}><Icon name="settings" />ปรับการใช้งาน</button><button className="about-link" onClick={() => go('about')}>เกี่ยวกับนวัตกรรม · รุ่นทดลอง 0.1</button></div>
     </aside>}
 
@@ -222,6 +221,14 @@ export default function App() {
       {storageMessage && <div className="storage-warning" role="alert"><Icon name="info" /><span>{storageMessage}</span><button className="text-button" onClick={exportResults}>ส่งออกผล</button></div>}
       {store.cloud && store.syncMessage && <div className="storage-warning" role="status"><Icon name="info"/><span>{store.syncMessage}</span><button className="text-button" onClick={()=>go('account')}>จัดการผล</button></div>}
       <main id="main" ref={mainRef}>
+        {account.teacher && (page === 'account' || page === 'report') && <div className="teacher-area">
+          <p className="teacher-area-label">สำหรับครู</p>
+          <nav className="teacher-area-tabs" aria-label="เมนูสำหรับครู">
+            <button className={page === 'account' ? 'active' : ''} aria-current={page === 'account' ? 'page' : undefined} onClick={()=>go('account')}><Icon name="shield" size={18}/>ผู้เรียน</button>
+            <button className={page === 'report' ? 'active' : ''} aria-current={page === 'report' ? 'page' : undefined} disabled={!canReport} aria-describedby={!canReport ? 'teacher-report-help' : undefined} onClick={()=>go('report')}><Icon name="chart" size={18}/>รายงานผู้เรียน</button>
+          </nav>
+          {!canReport && <p id="teacher-report-help" className="teacher-report-help">เลือกผู้เรียนก่อนเปิดรายงาน</p>}
+        </div>}
         {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{account.selectStudent(s);go('home');}} onLogout={()=>store.cloud && store.pending ? setConfirmLogout(true) : void logout()} onSignedIn={role=>go(role==='teacher'?'account':'home')} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
         {page === 'home' && <>
 
@@ -276,8 +283,8 @@ export default function App() {
         </>}
 
         {page === 'report' && canReport && <>
-          <div className="page-heading"><div><span className="eyebrow pink">ติดตามกิจกรรม ไม่ตัดสินผู้เรียน</span><h1 tabIndex={-1}>พื้นที่สำหรับครู</h1><p>{store.cloud?`ติดตามความก้าวหน้าของ ${account.student!.display_name}`:'ผลจากการทดลองบนเครื่องนี้'}</p></div><button className="secondary" disabled={!data.sessions.some(s=>s.records.length)} onClick={exportResults}><Icon name="download"/>ส่งออก CSV</button></div>
-          <div className="notice"><Icon name="shield"/><div><strong>{store.cloud?`รายงานของ ${account.student!.display_name} · ${account.student!.code}`:'โหมดทดลอง · ผลเฉพาะในเครื่องนี้'}</strong><p>{store.cloud?'ผลแยกตามผู้เรียนและบัญชีครู ตรวจสถานะรอส่งก่อนเปลี่ยนเครื่องได้ในหน้าผู้เรียน':'ใช้หน้าผู้เรียนเพื่อเข้าสู่ระบบครูและเลือกผู้เรียน หากทดลองโดยไม่เชื่อมฐานข้อมูล ผลจะอยู่ในเบราว์เซอร์นี้'} คะแนนกิจกรรมแยกจากการประเมินอ่านออกเสียงของครู</p></div></div>
+          <div className="page-heading"><div><span className="eyebrow pink">ติดตามกิจกรรม ไม่ตัดสินผู้เรียน</span><h1 tabIndex={-1}>รายงานผู้เรียน</h1><p>{store.cloud?`ติดตามความก้าวหน้าของ ${account.student!.display_name}`:'ผลจากการทดลองบนเครื่องนี้'}</p></div><button className="secondary" disabled={!data.sessions.some(s=>s.records.length)} onClick={exportResults}><Icon name="download"/>ส่งออก CSV</button></div>
+          <div className="notice"><Icon name="shield"/><div><strong>{store.cloud?`รายงานของ ${account.student!.display_name} · ${account.student!.code}`:'โหมดทดลอง · ผลเฉพาะในเครื่องนี้'}</strong><p>{store.cloud?'ผลแยกตามผู้เรียนและบัญชีครู ตรวจสถานะรอส่งก่อนเปลี่ยนเครื่องได้ในเมนูสำหรับครู':'ใช้เมนูสำหรับครูเพื่อเข้าสู่ระบบครูและเลือกผู้เรียน หากทดลองโดยไม่เชื่อมฐานข้อมูล ผลจะอยู่ในเบราว์เซอร์นี้'} คะแนนกิจกรรมแยกจากการประเมินอ่านออกเสียงของครู</p></div></div>
           <div className="report-stats">{[{label:'ทำได้เองครั้งแรก',value:total.independent},{label:'ทำได้หลังลองใหม่',value:total.retried},{label:'ทำได้หลังช่วย',value:total.assisted},{label:'เก็บไว้ฝึกภายหลัง',value:total.skipped}].map(x=><div className="report-stat" key={x.label}><strong>{x.value}<small> ข้อ</small></strong><span>{x.label}</span></div>)}</div>
           <p className="fine-print">จากกิจกรรมที่บันทึก {total.total} ข้อ · ทำได้เองครั้งแรก {percent(total.independent,total.total)}% · ไม่รวมข้อที่ยังไม่ได้ทำในรอบที่ค้างอยู่</p>
           {!data.sessions.length ? <section className="empty-state"><Icon name="chart" size={48}/><h2>ยังไม่มีผลการฝึก</h2><p>เมื่อทำกิจกรรม ผลจะปรากฏที่นี่</p><button className="primary" onClick={()=>start(1)}>ทดลองบทเรียนแรก<Icon name="arrow"/></button></section> : <>
@@ -297,7 +304,7 @@ export default function App() {
       </main>
       {page!=='exercise' && <footer className="app-footer"><span><Icon name="heart" size={14}/>เรียนรู้ด้วยความเข้าใจ ในจังหวะของตัวเอง</span><button onClick={()=>go('about')}>ReadTech Companion · รุ่นทดลอง</button></footer>}
     </div>
-    {page!=='exercise' && <nav className="mobile-nav" aria-label="เมนูหลักบนมือถือ">{nav.filter(n=>!account.learner || n.id!=='report').map(n=><button key={n.id} className={page===n.id?'active':''} aria-current={page===n.id?'page':undefined} onClick={()=>go(n.id)}><Icon name={n.icon}/><span>{n.id==='account'&&account.learner?'บัญชีของฉัน':n.text}</span></button>)}</nav>}
+    {page!=='exercise' && <nav className="mobile-nav" aria-label="เมนูหลักบนมือถือ">{nav.map(n=><button key={n.id} className={(page===n.id || (n.id==='account' && page==='report'))?'active':''} aria-current={(page===n.id || (n.id==='account' && page==='report'))?'page':undefined} onClick={()=>go(n.id)}><Icon name={n.icon}/><span>{n.id==='account'&&account.learner?'บัญชีของฉัน':n.text}</span></button>)}</nav>}
     {pause && <Modal title="พักสักนิดก็ได้" onClose={()=>setPause(false)}><BookFriend className="pause-friend"/><p>เก็บกิจกรรมที่ทำไว้แล้ว<br/>กลับมาฝึกต่อจากเดิมได้เสมอ</p><div className="dialog-actions"><button className="primary" onClick={()=>setPause(false)}>ฝึกต่อ<Icon name="arrow"/></button><button className="secondary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button></div></Modal>}
     {confirmStart && <Modal title="เริ่มรอบใหม่ไหม?" onClose={()=>setConfirmStart(null)}><p>ผลที่ทำในรอบเดิมยังอยู่ในรายงาน แต่รอบเดิมจะจบก่อนครบ และจะเริ่มบทที่เลือกจากข้อแรก</p><div className="dialog-actions"><button className="primary" onClick={()=>start(confirmStart.id,confirmStart.indices,true)}>เริ่มรอบใหม่</button><button className="secondary" onClick={()=>setConfirmStart(null)}>ยังไม่เริ่ม</button></div></Modal>}
     {confirmReset && <Modal title="ล้างผลในเครื่องนี้?" onClose={()=>setConfirmReset(false)}><p>ผลการฝึก รางวัล และข้อสังเกตของครูจะถูกล้าง กู้คืนในแอปไม่ได้ กรุณาส่งออก CSV ก่อนล้างผล</p><div className="dialog-actions"><button className="secondary" onClick={exportResults}><Icon name="download"/>ส่งออกก่อน</button><button className="primary" onClick={()=>{setData(d=>({...d,sessions:[]}));setSessionId(null);setSelectedReport(null);setConfirmReset(false);go('home');}}>ยืนยันล้างผล</button><button className="text-button" onClick={()=>setConfirmReset(false)}>ยกเลิก</button></div></Modal>}

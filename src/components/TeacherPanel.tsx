@@ -42,7 +42,7 @@ export function TeacherPanel({ account, pending, onSelect, onLogout, onSignedIn,
     try { account.configure(url, key); setKey(''); } catch (error) { setMessage((error as Error).message); }
   }
   return <>
-    <div className="page-heading"><div><span className="eyebrow pink">{!account.user?'ยินดีต้อนรับ':account.learner?'พื้นที่ของฉัน':'ครูและนักเรียน'}</span><h1 tabIndex={-1}>{!account.user?'เข้าสู่ระบบ':account.learner?'บัญชีของฉัน':'ผู้เรียนและบัญชีครู'}</h1><p>{!account.user?'เลือกประเภทบัญชี แล้วเข้าสู่พื้นที่ของคุณ':account.learner?'ฝึกด้วยตัวเอง ดาวและผลฝึกเป็นของเธอ':'ครูลงทะเบียนให้ นักเรียนเข้าเรียนเอง และเก็บผลแยกเป็นรายคน'}</p></div></div>
+    <div className="page-heading"><div><span className="eyebrow pink">{!account.user?'ยินดีต้อนรับ':account.learner?'พื้นที่ของฉัน':'จัดการบัญชีและการเข้าเรียน'}</span><h1 tabIndex={-1}>{!account.user?'เข้าสู่ระบบ':account.learner?'บัญชีของฉัน':'ผู้เรียน'}</h1><p>{!account.user?'เลือกประเภทบัญชี แล้วเข้าสู่พื้นที่ของคุณ':account.learner?'ฝึกด้วยตัวเอง ดาวและผลฝึกเป็นของเธอ':'ครูลงทะเบียนให้ นักเรียนเข้าเรียนเอง และเก็บผลแยกเป็นรายคน'}</p></div></div>
     {(!account.configReady || account.checking) && <p className="cloud-message" role="status">กำลังตรวจการเชื่อมต่อ…</p>}
     {(message || account.message) && <p className="cloud-message" role="alert">{message || account.message}</p>}
     {account.configReady && !account.config && <section className="cloud-panel">

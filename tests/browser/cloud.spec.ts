@@ -75,8 +75,12 @@ function mockBackend() {
   return { install, students, sessions, requests, setFailWrites: (value: boolean) => { failWrites = value; } };
 }
 async function openAccount(page: Page) {
-  const menu=page.getByRole('button', { name: /^(ผู้เรียน|บัญชีของฉัน)$/ });
+  const menu=page.getByRole('button', { name: /^(สำหรับครู|บัญชีของฉัน)$/ });
   if(await menu.count()) await menu.click();
+}
+async function openTeacherReport(page: Page) {
+  await openAccount(page);
+  await page.getByRole('button', { name: 'รายงานผู้เรียน', exact: true }).click();
 }
 async function login(page: Page, email = 'teacher@example.test') {
   await page.goto('./'); await openAccount(page);
@@ -115,7 +119,7 @@ test('an authenticated but unapproved account cannot open student management', a
   await expect(page.getByRole('heading', { name: 'เพิ่มผู้เรียน', exact: true })).toHaveCount(0);
   expect(backend.requests).not.toContain('/functions/v1/readtech-student-accounts');
   await expect(page.getByRole('button',{name:'สำหรับครู',exact:true})).toHaveCount(0);
-  await expect(page.getByRole('heading',{name:'พื้นที่สำหรับครู',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'รายงานผู้เรียน',exact:true})).toHaveCount(0);
 });
 
 test('teacher reports require approved login and a selected learner on desktop and mobile', async ({ page, context }) => {
@@ -124,16 +128,29 @@ test('teacher reports require approved login and a selected learner on desktop a
     await page.setViewportSize({width,height:900}); await page.goto('./');
     await expect(page.getByRole('button',{name:'สำหรับครู',exact:true})).toHaveCount(0);
     await expect(page.getByRole('heading',{name:'เข้าสู่ระบบ',exact:true})).toBeVisible();
-    await expect(page.getByRole('heading',{name:'พื้นที่สำหรับครู',exact:true})).toHaveCount(0);
+    await expect(page.getByRole('heading',{name:'รายงานผู้เรียน',exact:true})).toHaveCount(0);
   }
   await page.setViewportSize({width:1440,height:1000}); await login(page);
   await expect(page.getByRole('heading',{name:'เพิ่มผู้เรียน',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'ผู้เรียนและบัญชีครู',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'ผู้เรียน',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'รายงานผู้เรียน',exact:true})).toBeDisabled();
   await selectFirst(page);
-  await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'พื้นที่สำหรับครู',exact:true})).toBeVisible();
+  await openTeacherReport(page);
+  await expect(page.getByRole('heading',{name:'รายงานผู้เรียน',exact:true})).toBeVisible();
   await expect(page.getByText('รายงานของ นักอ่านหนึ่ง · RT001',{exact:true})).toBeVisible();
+  for (const width of [1440,390]) {
+    await page.setViewportSize({width,height:1000});
+    const mainMenu=page.getByRole('navigation',{name:width>950?'เมนูหลัก':'เมนูหลักบนมือถือ',exact:true});
+    await expect(mainMenu.getByRole('button')).toHaveCount(4);
+    await expect(mainMenu.getByRole('button',{name:'ผู้เรียน',exact:true})).toHaveCount(0);
+    await expect(mainMenu.getByRole('button',{name:'สำหรับครู',exact:true})).toHaveAttribute('aria-current','page');
+    await openAccount(page);
+    await expect(page.getByRole('heading',{name:'ผู้เรียน',exact:true})).toBeVisible();
+    await openTeacherReport(page);
+    await expect(page.getByRole('heading',{name:'รายงานผู้เรียน',exact:true})).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  }
   await openAccount(page);
   await page.getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
   await expect(page.getByRole('button',{name:'สำหรับครู',exact:true})).toHaveCount(0);
@@ -148,7 +165,7 @@ test('approved teacher report exports learner identity and protects CSV notes fr
     await page.getByRole('button',{name:`เลือก ${lesson.questions[i].letter}`,exact:true}).click();
     await page.getByRole('button',{name:i===lesson.questions.length-1?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();
   }
-  await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
+  await openTeacherReport(page);
   await page.getByRole('button',{name:'ดูผล',exact:true}).click();
   await page.getByRole('textbox',{name:'ข้อสังเกต (ไม่ใส่ชื่อจริงหรือข้อมูลสุขภาพ)'}).fill('=1+1');
   const download=page.waitForEvent('download');
@@ -298,6 +315,8 @@ test('teacher registration displays credentials once and can reset or suspend a 
 test('students independently practice concurrently in two browsers and teacher sees their individual results', async ({page,context,browser}) => {
   const backend=mockBackend();await backend.install(context);await studentLogin(page);
   await expect(page.getByRole('button',{name:'สำหรับครู',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('navigation',{name:'เมนูสำหรับครู',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'บัญชีของฉัน',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
   await page.getByRole('button',{name:'เลือก ก',exact:true}).click();
   const secondContext=await browser.newContext();await backend.install(secondContext);const secondPage=await secondContext.newPage();
@@ -312,7 +331,7 @@ test('students independently practice concurrently in two browsers and teacher s
   await expect(page.locator('.stat-number').filter({hasText:'1 ดวง'})).toBeVisible();
   await openAccount(page);await page.getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
   await expect.poll(async()=>(await keys(page)).filter(k=>k.includes(pupil)).length).toBe(0);
-  await login(page);await page.getByRole('button',{name:'เลือกผู้เรียน นักอ่านหนึ่ง',exact:true}).click();await expect(page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true})).toBeVisible();await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
+  await login(page);await page.getByRole('button',{name:'เลือกผู้เรียน นักอ่านหนึ่ง',exact:true}).click();await expect(page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true})).toBeVisible();await openTeacherReport(page);
   await expect(page.getByText('รายงานของ นักอ่านหนึ่ง · RT001',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'ดูผล',exact:true})).toHaveCount(1);
   await secondContext.close();

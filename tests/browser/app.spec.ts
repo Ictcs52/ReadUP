@@ -73,7 +73,7 @@ test('independent, retry, assisted and skipped results persist distinctly',async
   expect((await snapshot(page)).sessions[0].records.map((r:any)=>r.category)).toEqual(['retried','assisted','independent','skipped','independent']);
   await page.reload();
   await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'ผู้เรียนและบัญชีครู',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'ผู้เรียน',exact:true})).toBeVisible();
   expect((await snapshot(page)).sessions[0].records.map((r:any)=>r.category)).toEqual(['retried','assisted','independent','skipped','independent']);
 });
 
