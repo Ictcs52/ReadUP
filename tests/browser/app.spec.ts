@@ -178,3 +178,48 @@ test('accessibility checks for home and exercise',async({page})=>{
     expect(issues, name).toEqual([]);
   }
 });
+
+async function seedTimedPractice(page: Page, minutes: 0|5|10, elapsed: number) {
+  await home(page);
+  await expect.poll(async()=>Boolean(await snapshot(page))).toBe(true);
+  await page.evaluate(({minutes,elapsed})=>new Promise<void>((resolve,reject)=>{
+    const open=indexedDB.open('readtech-local-v1');open.onsuccess=()=>{
+      const db=open.result,tx=db.transaction('app','readwrite'),store=tx.objectStore('app'),get=store.get('snapshot');
+      get.onsuccess=()=>{const data=get.result;data.settings.breakMinutes=minutes;data.sessions=[{id:'break-round',lessonId:1,startedAt:Date.now(),status:'active',questionIndices:[0,1,2,3,4],index:0,records:[],wrongAttempts:2,hintLevel:1,currentMs:elapsed,answered:false}];store.put(data,'snapshot');};
+      tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>reject(tx.error);
+    };
+  }),{minutes,elapsed});
+  await page.reload();await page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();
+}
+
+test('five-minute break preserves attempts, excludes dialog time and resumes after reload',async({page})=>{
+  await seedTimedPractice(page,5,300000);
+  const dialog=page.getByRole('dialog',{name:'พักสายตาสักนิดไหม?',exact:true});await expect(dialog).toBeVisible();
+  await expect.poll(async()=>(await snapshot(page)).sessions[0].currentMs).toBeGreaterThanOrEqual(300000);
+  const paused=await snapshot(page);await page.waitForTimeout(2200);expect((await snapshot(page)).sessions[0].currentMs).toBe(paused.sessions[0].currentMs);
+  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+  await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});expect(await page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>v.id))).toEqual([]);
+  await dialog.getByRole('button',{name:'ฝึกต่อ',exact:true}).click();await expect(dialog).toHaveCount(0);
+  await expect.poll(async()=>(await snapshot(page)).sessions[0].breakAcknowledgedMs).toBeGreaterThanOrEqual(300000);
+  expect((await snapshot(page)).sessions[0]).toMatchObject({id:'break-round',status:'active',index:0,wrongAttempts:2,hintLevel:1,records:[]});
+  await page.reload();await page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();await expect(dialog).toHaveCount(0);
+  await page.getByRole('button',{name:'เลือก ก',exact:true}).click();await page.getByRole('button',{name:'ข้อต่อไป',exact:true}).click();
+  const result=await snapshot(page);expect(result.sessions[0].records[0]).toMatchObject({category:'assisted',wrongAttempts:2,hintLevel:1});
+});
+
+test('ten-minute reminder supports taking a break and keeps progress at the same question',async({page})=>{
+  await seedTimedPractice(page,10,600000);
+  const dialog=page.getByRole('dialog',{name:'พักสายตาสักนิดไหม?',exact:true});await expect(dialog).toContainText('10 นาที');
+  await dialog.getByRole('button',{name:'พักก่อน',exact:true}).click();await expect(page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true})).toBeVisible();
+  await expect.poll(async()=>(await snapshot(page)).sessions[0].breakAcknowledgedMs).toBeGreaterThanOrEqual(600000);
+  const paused=(await snapshot(page)).sessions[0].currentMs;await page.waitForTimeout(1500);expect((await snapshot(page)).sessions[0].currentMs).toBe(paused);
+  await page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();await expect(dialog).toHaveCount(0);expect((await snapshot(page)).sessions[0].index).toBe(0);
+});
+
+test('reminder setting persists and ten minutes does not prompt after only five',async({page})=>{
+  await seedTimedPractice(page,10,300000);await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button',{name:'กลับหน้าแรก',exact:true}).click();await page.getByRole('button',{name:'ปรับการใช้งาน',exact:true}).first().click();
+  const setting=page.getByRole('combobox',{name:'ช่วงเวลาเตือนพัก',exact:true});await expect(setting).toHaveValue('10');await setting.selectOption('0');
+  await expect.poll(async()=>(await snapshot(page)).settings.breakMinutes).toBe(0);await page.reload();await page.getByRole('button',{name:'ปรับการใช้งาน',exact:true}).first().click();await expect(setting).toHaveValue('0');
+  await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
+});

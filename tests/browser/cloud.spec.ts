@@ -773,3 +773,31 @@ test('report grade filter limits learners, retains matching selection and clears
  await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
  expect(await page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>({id:v.id,nodes:v.nodes.map((n:any)=>({target:n.target,failureSummary:n.failureSummary}))})))).toEqual([]);
 });
+
+test.describe('reading progress in a Thai calendar',()=>{
+ test.use({timezoneId:'Asia/Bangkok'});
+ test('observations, inclusive date filters, chart context and CSV follow the selected learner',async({page,context})=>{
+  const backend=mockBackend();
+  const common={student_id:first,teacher_id:owner,reading_text:'ชุดคำเดิม',correct_words:8,incorrect_words:2,letter_swaps:1,skipped_words:1,stops:0,reading_seconds:null,help_level:'prompted',participation:null,confidence:null,note:'',revision:1,created_at:'2026-10-01T00:00:00Z',updated_at:'2026-10-01T00:00:00Z'};
+  ['2026-10-05T16:59:00Z','2026-10-05T17:00:00Z','2026-10-06T16:59:00Z','2026-10-06T17:00:00Z'].forEach((assessed_at,i)=>backend.readings.set(`record-${i}`,{...common,id:`record-${i}`,assessed_at,reading_text:`ชุดคำ ${i+1}`,correct_words:7+i,incorrect_words:3-i}));
+  await backend.install(context);await login(page);await selectFirst(page);
+  const panel=page.getByRole('region',{name:'บันทึกการอ่านของ นักอ่านหนึ่ง',exact:true}),progress=panel.getByRole('region',{name:'ความก้าวหน้าการอ่าน',exact:true});
+  await expect(progress.getByRole('img')).toHaveAttribute('aria-label',/4 ครั้ง/);
+  await panel.getByLabel('ตั้งแต่วันที่',{exact:true}).fill('2026-10-06');await panel.getByLabel('ถึงวันที่',{exact:true}).fill('2026-10-06');
+  await expect(panel.getByRole('heading',{name:'ประวัติการอ่าน 2 ครั้ง',exact:true})).toBeVisible();await expect(progress.getByRole('img')).toHaveAttribute('aria-label',/2 ครั้ง/);
+  await expect(progress).toContainText('ชุดคำ: ชุดคำ 3 · ทั้งหมด 10 คำ');await expect(progress).toContainText('ความมั่นใจ: ยังไม่ได้สังเกต');
+  await progress.getByLabel('กราฟที่แสดง',{exact:true}).selectOption('skipped');await expect(progress).toContainText('อ่านข้าม (คำ): 1 คำ');
+  await progress.getByLabel('ดูรายละเอียดจุดในกราฟ',{exact:true}).selectOption('record-1');await expect(progress).toContainText('ชุดคำ: ชุดคำ 2');
+  await progress.getByLabel('กราฟที่แสดง',{exact:true}).selectOption('help');await expect(progress.getByRole('img')).toHaveAttribute('aria-label',/ความช่วยเหลือ/);
+  const download=page.waitForEvent('download');await panel.getByRole('button',{name:'ส่งออกบันทึกการอ่าน CSV',exact:true}).click();const file=await download;const csv=await readFile((await file.path())!,'utf8');expect(csv).toContain('ชุดคำ 2');expect(csv).toContain('ชุดคำ 3');expect(csv).not.toContain('ชุดคำ 1');expect(csv).not.toContain('ชุดคำ 4');
+  await panel.getByRole('button',{name:/^แก้ไขบันทึกการอ่าน /}).first().click();const form=panel.getByRole('form',{name:'แก้ไขบันทึกการอ่าน',exact:true});await expect(form.getByLabel('ความมั่นใจ (ครูสังเกต)',{exact:true})).toHaveValue('');
+  await form.getByLabel('การมีส่วนร่วม (ครูสังเกต)',{exact:true}).selectOption('prompted');await form.getByLabel('ความมั่นใจ (ครูสังเกต)',{exact:true}).selectOption('encouraged');await form.getByRole('button',{name:'บันทึกผลการอ่าน',exact:true}).click();await expect(form).toHaveCount(0);
+  expect(backend.readings.get('record-2')).toMatchObject({participation:'prompted',confidence:'encouraged',revision:2});await progress.getByLabel('ดูรายละเอียดจุดในกราฟ',{exact:true}).selectOption('record-2');await expect(progress).toContainText('ลองอ่านเมื่อได้รับกำลังใจ');
+  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+  await page.screenshot({path:'test-results/reading-progress-mobile.png',fullPage:true});await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});expect(await page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>({id:v.id,nodes:v.nodes.map((n:any)=>n.target)})))).toEqual([]);
+  await panel.getByLabel('ตั้งแต่วันที่',{exact:true}).fill('2026-10-07');await expect(panel.getByRole('alert')).toContainText('วันที่เริ่มต้น');await expect(panel.getByRole('button',{name:'ส่งออกบันทึกการอ่าน CSV',exact:true})).toBeDisabled();
+  await panel.getByRole('button',{name:'ดูทุกวันที่',exact:true}).click();await expect(panel.getByRole('heading',{name:'ประวัติการอ่าน 4 ครั้ง',exact:true})).toBeVisible();
+  await panel.getByLabel('ตั้งแต่วันที่',{exact:true}).fill('2026-10-10');await expect(progress).toContainText('ไม่มีบันทึกในช่วงวันที่เลือก');
+  await page.getByRole('combobox',{name:'ผู้เรียนที่ต้องการดูรายงาน',exact:true}).selectOption(second);await expect(page.getByRole('region',{name:'บันทึกการอ่านของ นักอ่านสอง',exact:true})).toContainText('ยังไม่มีบันทึกการอ่าน');await expect(progress).toHaveCount(0);
+ });
+});

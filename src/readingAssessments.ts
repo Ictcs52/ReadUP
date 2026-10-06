@@ -4,9 +4,10 @@ export type ReadingInput = {
   assessed_at: string; reading_text: string; correct_words: number; incorrect_words: number;
   letter_swaps: number; skipped_words: number; stops: number; reading_seconds: number | null;
   help_level: 'independent' | 'prompted' | 'guided' | 'full'; note: string;
+  participation: 'independent' | 'prompted' | 'supported' | null; confidence: 'independent' | 'encouraged' | 'supported' | null;
 };
 export type ReadingAssessment = ReadingInput & { id: string; student_id: string; teacher_id: string; revision: number; created_at: string; updated_at: string };
-const columns = 'id,student_id,teacher_id,assessed_at,reading_text,correct_words,incorrect_words,letter_swaps,skipped_words,stops,reading_seconds,help_level,note,revision,created_at,updated_at';
+const columns = 'id,student_id,teacher_id,assessed_at,reading_text,correct_words,incorrect_words,letter_swaps,skipped_words,stops,reading_seconds,help_level,participation,confidence,note,revision,created_at,updated_at';
 
 export async function fetchReadingAssessments(client: SupabaseClient, studentId: string): Promise<ReadingAssessment[]> {
   const { data, error } = await client.from('readtech_reading_assessments').select(columns).eq('student_id', studentId).order('assessed_at', { ascending: false }).order('id', { ascending: false });

@@ -7,9 +7,9 @@ export type Session = {
   id: string; lessonId: number; startedAt: number; endedAt?: number;
   status: 'active' | 'complete' | 'ended'; questionIndices: number[]; index: number;
   records: RecordResult[]; wrongAttempts: number; hintLevel: number; currentMs: number;
-  answered: boolean; observation?: Observation;
+  answered: boolean; observation?: Observation; breakAcknowledgedMs?: number;
   contentVersion?: number; localRevision?: number; cloudRevision?: number;
   syncedLocalRevision?: number; syncConflict?: boolean;
 };
-export type Settings = { largeText: boolean; sound: boolean; effectsSound: boolean; slow: boolean; calm: boolean; voiceURI: string; speechRate: number; recordedFirst: boolean };
+export type Settings = { largeText: boolean; sound: boolean; effectsSound: boolean; slow: boolean; calm: boolean; voiceURI: string; speechRate: number; recordedFirst: boolean; breakMinutes: 0 | 5 | 10 };
 export type AppData = { version: 1; sessions: Session[]; settings: Settings };

@@ -1,6 +1,6 @@
 import type { AppData } from './types';
 
-export const defaultData: AppData = { version: 1, sessions: [], settings: { largeText: false, sound: true, effectsSound: true, slow: true, calm: false, voiceURI: '', speechRate: 0.85, recordedFirst: true } };
+export const defaultData: AppData = { version: 1, sessions: [], settings: { largeText: false, sound: true, effectsSound: true, slow: true, calm: false, voiceURI: '', speechRate: 0.85, recordedFirst: true, breakMinutes: 5 } };
 let db: IDBDatabase | null = null;
 let queue: Promise<void> = Promise.resolve();
 
@@ -18,7 +18,7 @@ export async function loadData(key = 'snapshot'): Promise<AppData> {
     req.onsuccess = () => {
       const raw = req.result;
       if (!raw) resolve(structuredClone(defaultData));
-      else if (raw.version === 1 && Array.isArray(raw.sessions) && raw.settings) resolve({ ...raw, settings: { ...defaultData.settings, speechRate: raw.settings.slow === false ? 0.95 : 0.85, ...raw.settings } });
+      else if (raw.version === 1 && Array.isArray(raw.sessions) && raw.settings) resolve({ ...raw, settings: { ...defaultData.settings, speechRate: raw.settings.slow === false ? 0.95 : 0.85, ...raw.settings, breakMinutes: [0,5,10].includes(raw.settings.breakMinutes) ? raw.settings.breakMinutes : 5 } });
       else reject(new Error('Unsupported saved data'));
     };
     req.onerror = () => reject(req.error);

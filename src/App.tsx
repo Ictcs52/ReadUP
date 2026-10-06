@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import curriculum from './data/lessons.json';
 import { defaultData } from './storage';
+import { breakDue, practiceElapsed } from './practiceTime.mjs';
 import { exportCsv, orderedOptions, percent, resultCategory, reviewItems, summarize } from './domain.mjs';
 import type { Lesson, Observation, Session } from './types';
 import { useCloudAccount } from './useCloudAccount';
@@ -52,6 +53,7 @@ export default function App() {
   const [level, setLevel] = useState(1);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [pause, setPause] = useState(false);
+  const [breakReminder, setBreakReminder] = useState(false);
   const [confirmStart, setConfirmStart] = useState<{ id: number; indices?: number[] } | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -84,7 +86,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    setSessionId(null); setSelectedReport(null); setPause(false); setConfirmReset(false);
+    setSessionId(null); setSelectedReport(null); setPause(false); setBreakReminder(false); setConfirmReset(false);
     setConfirmStart(null); setConfirmRefresh(false); setConfirmLogout(false);
     stopLessonAudio(); setPage(p => p === 'account' || p === 'report' ? p : account.teacher && account.student ? 'report' : 'home');
   }, [store.scope]);
@@ -113,7 +115,7 @@ export default function App() {
   }, [data.settings.sound, data.settings.effectsSound]);
 
   useEffect(() => {
-    if (!canPractice || page !== 'exercise' || pause || !visible || !current || current.answered || current.status !== 'active') return;
+    if (!canPractice || page !== 'exercise' || pause || breakReminder || confirmLogout || confirmRefresh || confirmStart || !visible || !current || current.answered || current.status !== 'active') return;
     let last = performance.now();
     const timer = window.setInterval(() => {
       const now = performance.now();
@@ -121,9 +123,19 @@ export default function App() {
       setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === sessionId ? { ...s, currentMs: s.currentMs + elapsed } : s) }));
     }, 1000);
     return () => clearInterval(timer);
-  }, [canPractice, page, pause, visible, sessionId, current?.answered, current?.status]);
+  }, [canPractice, page, pause, breakReminder, confirmLogout, confirmRefresh, confirmStart, visible, sessionId, current?.answered, current?.status]);
 
-  function go(next: Page) { if (teacherReportOnly && ['home','exercise','result'].includes(next)) next='report'; setPause(false); setPage((!authorized && next !== 'about') || (next === 'report' && !canOpenReport) ? 'account' : next); }
+  useEffect(() => {
+    if (canPractice && page === 'exercise' && visible && !pause && !breakReminder && !confirmLogout && !confirmRefresh && !confirmStart && breakDue(current,data.settings.breakMinutes)) {
+      stopLessonAudio(); stopFeedbackSound(); setBreakReminder(true);
+    }
+  }, [canPractice,page,visible,pause,breakReminder,confirmLogout,confirmRefresh,confirmStart,current,data.settings.breakMinutes]);
+
+  function acknowledgeBreak() {
+    updateSession(s=>({...s,breakAcknowledgedMs:practiceElapsed(s)}));
+    setBreakReminder(false);
+  }
+  function go(next: Page) { if (teacherReportOnly && ['home','exercise','result'].includes(next)) next='report'; setPause(false); setBreakReminder(false); setPage((!authorized && next !== 'about') || (next === 'report' && !canOpenReport) ? 'account' : next); }
   function buttonSound(event: MouseEvent<HTMLDivElement>) {
     if (!data.settings.sound || !data.settings.effectsSound) return;
     const target = event.target instanceof Element ? event.target.closest('button') : null;
@@ -329,6 +341,7 @@ export default function App() {
         {page === 'settings' && <>
           <div className="page-heading"><div><span className="eyebrow pink">ปรับให้สบายสำหรับเรา</span><h1 tabIndex={-1}>ปรับการใช้งาน</h1><p>ผู้ดูแลช่วยเลือกการตั้งค่าที่เหมาะกับผู้เรียนได้</p></div></div>
           <section className="settings-panel">{[{key:'largeText',title:'ตัวหนังสือใหญ่ขึ้น',detail:'ขยายคำสั่งและข้อความประกอบ'},{key:'sound',title:'เปิดเสียง',detail:'เปิดเสียงตัวอย่าง เสียงปุ่ม และเสียงฉลอง ไม่มีการบันทึกไมโครโฟน'},{key:'effectsSound',title:'เสียงปุ่มและเสียงฉลอง',detail:'เสียงสั้นเมื่อกดปุ่ม และทำนองนุ่ม ๆ เมื่อตอบถูก ปิดแยกจากเสียงอ่านได้'},{key:'recordedFirst',title:'ใช้ไฟล์เสียงบทเรียนก่อน',detail:'ใช้ไฟล์ที่ครูตรวจแล้วเมื่อมี ถ้าไม่มีจะใช้เสียงภาษาไทยในเครื่อง'},{key:'calm',title:'โหมดสงบ',detail:'ลดการเคลื่อนไหว ดาวจะแสดงแบบนิ่ง ปิดโหมดนี้เพื่อให้ดาวเด้ง'}].map(x=><label key={x.key} className="setting-row"><span><strong>{x.title}</strong><small>{x.detail}</small></span><input type="checkbox" checked={Boolean(data.settings[x.key as keyof typeof data.settings])} onChange={e=>setData(d=>({...d,settings:{...d.settings,[x.key]:e.target.checked}}))}/></label>)}</section>
+          <section className="settings-panel"><h2>พักระหว่างฝึก</h2><label className="setting-row"><span><strong>เตือนพักเมื่อฝึกครบ</strong><small>นับเฉพาะเวลาฝึก ไม่รวมช่วงพักหรือซ่อนหน้าเว็บ เลือกฝึกต่อได้โดยไม่จบรอบ</small></span><select aria-label="ช่วงเวลาเตือนพัก" value={data.settings.breakMinutes} onChange={e=>setData(d=>({...d,settings:{...d.settings,breakMinutes:Number(e.target.value) as 0|5|10}}))}><option value={5}>5 นาที</option><option value={10}>10 นาที</option><option value={0}>ไม่เตือน</option></select></label></section>
           <section className="settings-panel voice-panel"><h2>เสียงฝึกอ่าน</h2><p>{recordingCount()>0?`มีไฟล์เสียงบทเรียน ${recordingCount()} รายการ`:'ยังไม่ได้เพิ่มไฟล์เสียงครู ขณะนี้ใช้เสียงภาษาไทยที่มีในอุปกรณ์'} ควรฟังและตรวจการออกเสียงก่อนใช้สอน</p><div className="voice-controls"><label htmlFor="thai-voice">เลือกเสียงภาษาไทย<select id="thai-voice" disabled={!voices.length} value={voices.some(v=>v.voiceURI===data.settings.voiceURI)?data.settings.voiceURI:''} onChange={e=>setData(d=>({...d,settings:{...d.settings,voiceURI:e.target.value}}))}><option value="">{voices.length?`อัตโนมัติ · ${preferredThaiVoice(voices)?.name}`:'เครื่องนี้ไม่มีเสียงภาษาไทย'}</option>{voices.map(v=><option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>)}</select></label><label htmlFor="speech-rate">ความเร็วเสียงอ่าน · {data.settings.speechRate.toFixed(2)} เท่า<input id="speech-rate" type="range" min="0.65" max="1.10" step="0.05" value={data.settings.speechRate} aria-valuetext={`${data.settings.speechRate.toFixed(2)} เท่า`} onChange={e=>setData(d=>({...d,settings:{...d.settings,speechRate:Number(e.target.value)}}))}/><small>ปรับให้ชัดและมีเวลาฟัง ไม่จำเป็นต้องช้าที่สุด</small></label></div><button className="audio-button" disabled={!data.settings.sound} onClick={()=>playLessonAudio('กอ ไก่',data.settings,setAudioMessage)}><Icon name="sound"/>ทดลองฟัง กอ ไก่</button><span className="audio-status" role="status">{audioMessage || 'อัตโนมัติเลือกเปรมวดีเมื่อเครื่องนี้มีเสียงนี้ ปรับความเร็วให้ฟังเข้าใจได้'}</span></section>
           <section className="settings-panel"><h2>{account.learner?'ข้อมูลของฉัน':store.cloud?'ข้อมูลของผู้เรียนที่เลือก':'ข้อมูลในเครื่องนี้'}</h2><p>{account.learner?'ผลฝึกแยกเป็นของเธอ และเก็บสำเนาในเครื่องไว้ระหว่างรอส่ง ก่อนเปลี่ยนเครื่องให้ตรวจว่าส่งผลครบแล้ว':store.cloud?'ผลถูกส่งไปฐานข้อมูล Supabase ที่ผู้ดูแลตั้งค่า และเก็บสำเนาในเครื่องระหว่างฝึก เปลี่ยนผู้เรียนได้จากหน้าผู้เรียนโดยเก็บผลแต่ละคนแยกกัน':'โหมดทดลองเก็บผลเฉพาะในเครื่อง และอาจหายเมื่อล้างข้อมูลเบราว์เซอร์ กรุณาส่งออกผลก่อนเปลี่ยนเครื่องหรือผู้เรียน'}</p><div className="setting-actions"><button className="secondary" onClick={exportResults}><Icon name="download"/>ส่งออกผล</button>{store.cloud?<button className="text-button" onClick={()=>go('account')}>{account.learner?'บัญชีของฉัน':'เลือกผู้เรียนคนอื่น'}</button>:<button className="text-button danger" onClick={()=>setConfirmReset(true)}>ล้างผลเพื่อเปลี่ยนผู้เรียน</button>}</div></section>
         </>}
@@ -338,6 +351,7 @@ export default function App() {
       {page!=='exercise' && <footer className="app-footer"><span><Icon name="heart" size={14}/>เรียนรู้ด้วยความเข้าใจ ในจังหวะของตัวเอง</span><button onClick={()=>go('about')}>ReadTech Companion · รุ่นทดลอง</button></footer>}
     </div>
     {page!=='exercise' && <nav className="mobile-nav" aria-label="เมนูหลักบนมือถือ">{nav.map(n=><button key={n.id} className={(page===n.id || (n.id==='account' && page==='report'))?'active':''} aria-current={(page===n.id || (n.id==='account' && page==='report'))?'page':undefined} onClick={()=>go(n.id)}><Icon name={n.icon}/><span>{n.id==='account'&&account.learner?'บัญชีของฉัน':n.text}</span></button>)}</nav>}
+    {breakReminder && <Modal title="พักสายตาสักนิดไหม?" onClose={acknowledgeBreak}><BookFriend className="pause-friend"/><p>ฝึกมาอีก {data.settings.breakMinutes} นาทีแล้ว<br/>ยืดตัวหรือพักสักนิด แล้วกลับมาฝึกต่อได้</p><div className="dialog-actions"><button className="primary" onClick={acknowledgeBreak}>ฝึกต่อ<Icon name="arrow"/></button><button className="secondary" onClick={()=>{acknowledgeBreak();go('home');}}><Icon name="home"/>พักก่อน</button></div></Modal>}
     {pause && <Modal title="พักสักนิดก็ได้" onClose={()=>setPause(false)}><BookFriend className="pause-friend"/><p>เก็บกิจกรรมที่ทำไว้แล้ว<br/>กลับมาฝึกต่อจากเดิมได้เสมอ</p><div className="dialog-actions"><button className="primary" onClick={()=>setPause(false)}>ฝึกต่อ<Icon name="arrow"/></button><button className="secondary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button></div></Modal>}
     {confirmStart && <Modal title="เริ่มรอบใหม่ไหม?" onClose={()=>setConfirmStart(null)}><p>ผลที่ทำในรอบเดิมยังอยู่ในรายงาน แต่รอบเดิมจะจบก่อนครบ และจะเริ่มบทที่เลือกจากข้อแรก</p><div className="dialog-actions"><button className="primary" onClick={()=>start(confirmStart.id,confirmStart.indices,true)}>เริ่มรอบใหม่</button><button className="secondary" onClick={()=>setConfirmStart(null)}>ยังไม่เริ่ม</button></div></Modal>}
     {confirmReset && <Modal title="ล้างผลในเครื่องนี้?" onClose={()=>setConfirmReset(false)}><p>ผลการฝึก รางวัล และข้อสังเกตของครูจะถูกล้าง กู้คืนในแอปไม่ได้ กรุณาส่งออก CSV ก่อนล้างผล</p><div className="dialog-actions"><button className="secondary" onClick={exportResults}><Icon name="download"/>ส่งออกก่อน</button><button className="primary" onClick={()=>{setData(d=>({...d,sessions:[]}));setSessionId(null);setSelectedReport(null);setConfirmReset(false);go('home');}}>ยืนยันล้างผล</button><button className="text-button" onClick={()=>setConfirmReset(false)}>ยกเลิก</button></div></Modal>}

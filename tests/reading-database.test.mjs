@@ -18,7 +18,9 @@ test('actual reading records require an active owning teacher, preserve identity
     await db.query('insert into public.readtech_students(id,teacher_id,code,display_name,auth_user_id,login_id,login_enabled) values($1,$2,$3,$4,$5,$3,true),($6,$7,$8,$9,null,null,false)',[student,teacher,'0123','นักอ่าน',pupil,foreign,other,'0124','นักอ่านอีกคน']);
     const asUser=(uid,sql,parameters=[])=>db.transaction(async tx=>{await tx.exec('set local role authenticated');await tx.query("select set_config('request.jwt.claim.sub',$1,true)",[uid]);return tx.query(sql,parameters);});
     const insert=(uid,id,studentId=student,owner=teacher,correct=8,incorrect=2,skipped=1)=>asUser(uid,'insert into public.readtech_reading_assessments(id,student_id,teacher_id,correct_words,incorrect_words,skipped_words,help_level) values($1,$2,$3,$4,$5,$6,$7) returning *',[id,studentId,owner,correct,incorrect,skipped,'independent']);
-    const first=(await insert(teacher,record)).rows[0];assert.equal(first.revision,1);assert.equal(first.reading_seconds,null);
+    const first=(await insert(teacher,record)).rows[0];assert.equal(first.revision,1);assert.equal(first.reading_seconds,null);assert.equal(first.participation,null);assert.equal(first.confidence,null);
+    await assert.rejects(asUser(teacher,"update public.readtech_reading_assessments set confidence='invented' where id=$1",[record]),error=>error.code==='23514');
+    await assert.rejects(asUser(teacher,"update public.readtech_reading_assessments set participation='invented' where id=$1",[record]),error=>error.code==='23514');
     assert.equal((await asUser(teacher,'select * from public.readtech_reading_assessments')).rows.length,1);
     for(const uid of [other,pupil])assert.equal((await asUser(uid,'select * from public.readtech_reading_assessments')).rows.length,0);
     await assert.rejects(insert(pupil,'77777777-7777-4777-8777-777777777777'),error=>error.code==='42501');
@@ -29,8 +31,10 @@ test('actual reading records require an active owning teacher, preserve identity
     await assert.rejects(asUser(teacher,'update public.readtech_reading_assessments set student_id=$1 where id=$2',[foreign,record]),error=>error.code==='42501');
     await assert.rejects(asUser(teacher,'update public.readtech_reading_assessments set revision=900 where id=$1',[record]),error=>error.code==='42501');
     await assert.rejects(asUser(teacher,'delete from public.readtech_reading_assessments where id=$1',[record]),error=>error.code==='42501');
-    const updated=await asUser(teacher,'update public.readtech_reading_assessments set correct_words=7,incorrect_words=3 where id=$1 and revision=1 returning *',[record]);
+    const updated=await asUser(teacher,"update public.readtech_reading_assessments set correct_words=7,incorrect_words=3,participation='prompted',confidence='encouraged' where id=$1 and revision=1 returning *",[record]);
     assert.equal(updated.rows[0].revision,2);assert.equal(updated.rows[0].student_id,student);
+    assert.equal(updated.rows[0].participation,'prompted');assert.equal(updated.rows[0].confidence,'encouraged');
+    for(const uid of [other,pupil])assert.equal((await asUser(uid,"update public.readtech_reading_assessments set confidence='independent' where id=$1 returning *",[record])).rows.length,0);
     assert.equal((await asUser(teacher,'update public.readtech_reading_assessments set note=$1 where id=$2 and revision=1 returning *',['stale',record])).rows.length,0);
     assert.equal((await asUser(pupil,'update public.readtech_reading_assessments set note=$1 where id=$2 returning *',['forged',record])).rows.length,0);
     await db.query('update public.readtech_teachers set active=false where id=$1',[teacher]);
