@@ -4,16 +4,18 @@ import type { CloudAccount } from '../useCloudAccount';
 import { studentLoginEmail, type Student, type StudentCredentials } from '../cloud';
 import { Icon } from './Icon';
 
-export function TeacherPanel({ account, pending, onSelect, onLogout, syncNow, refreshCloud, exportCsv, conflicts }: {
+export function TeacherPanel({ account, pending, onSelect, onLogout, onSignedIn, syncNow, refreshCloud, exportCsv, conflicts }: {
   account: CloudAccount; pending: number; conflicts: number;
-  onSelect: (student: Student | null) => void; onLogout: () => void;
+  onSelect: (student: Student | null) => void; onLogout: () => void; onSignedIn: (role: 'student' | 'teacher') => void;
   syncNow: () => Promise<void>; refreshCloud: () => void; exportCsv: () => void;
 }) {
   const [url, setUrl] = useState(''); const [key, setKey] = useState('');
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
-  const [loginId, setLoginId] = useState(''); const [studentPassword, setStudentPassword] = useState('');
+  const [loginId, setLoginId] = useState('');
+  const [loginRole, setLoginRole] = useState<'student' | 'teacher'>('student');
+  const [showPassword, setShowPassword] = useState(false);
   const [credentials, setCredentials] = useState<StudentCredentials | null>(null);
-  useEffect(() => { setCredentials(null); setPassword(''); setStudentPassword(''); }, [account.user?.id]);
+  useEffect(() => { setCredentials(null); setPassword(''); setShowPassword(false); }, [account.user?.id]);
   const [code, setCode] = useState(''); const [name, setName] = useState('');
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState('');
   async function action(fn: () => Promise<void>) {
@@ -24,17 +26,10 @@ export function TeacherPanel({ account, pending, onSelect, onLogout, syncNow, re
   async function login(event: FormEvent) {
     event.preventDefault();
     await action(async () => {
-      const result = await account.client!.auth.signInWithPassword({ email: email.trim(), password });
-      if (result.error) throw new Error('เข้าสู่ระบบไม่สำเร็จ ตรวจอีเมลและรหัสผ่าน แล้วลองอีกครั้ง');
-      setPassword('');
-    });
-  }
-  async function learnerLogin(event: FormEvent) {
-    event.preventDefault();
-    await action(async () => {
-      const { error } = await account.client!.auth.signInWithPassword({ email: studentLoginEmail(loginId), password: studentPassword });
-      if (error) throw new Error('รหัสเข้าเรียนหรือรหัสผ่านไม่ถูกต้อง ลองอีกครั้งหรือติดต่อครู');
-      setStudentPassword('');
+      const identity = loginRole === 'teacher' ? email.trim() : studentLoginEmail(loginId);
+      const { error } = await account.client!.auth.signInWithPassword({ email: identity, password });
+      if (error) throw new Error(loginRole === 'teacher' ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองอีกครั้ง' : 'รหัสเข้าเรียนหรือรหัสผ่านไม่ถูกต้อง ลองอีกครั้งหรือติดต่อครู');
+      setPassword(''); setShowPassword(false); onSignedIn(loginRole);
     });
   }
   async function access(s: Student, kind: 'register' | 'reset' | 'disable' | 'enable') {
@@ -47,7 +42,7 @@ export function TeacherPanel({ account, pending, onSelect, onLogout, syncNow, re
     try { account.configure(url, key); setKey(''); } catch (error) { setMessage((error as Error).message); }
   }
   return <>
-    <div className="page-heading"><div><span className="eyebrow pink">{account.learner?'พื้นที่ของฉัน':'ครูและนักเรียน'}</span><h1 tabIndex={-1}>{account.learner?'บัญชีของฉัน':'ผู้เรียนและบัญชีครู'}</h1><p>{account.learner?'ฝึกด้วยตัวเอง ดาวและผลฝึกเป็นของเธอ':'ครูลงทะเบียนให้ นักเรียนเข้าเรียนเอง และเก็บผลแยกเป็นรายคน'}</p></div></div>
+    <div className="page-heading"><div><span className="eyebrow pink">{!account.user?'ยินดีต้อนรับ':account.learner?'พื้นที่ของฉัน':'ครูและนักเรียน'}</span><h1 tabIndex={-1}>{!account.user?'เข้าสู่ระบบ':account.learner?'บัญชีของฉัน':'ผู้เรียนและบัญชีครู'}</h1><p>{!account.user?'เลือกประเภทบัญชี แล้วเข้าสู่พื้นที่ของคุณ':account.learner?'ฝึกด้วยตัวเอง ดาวและผลฝึกเป็นของเธอ':'ครูลงทะเบียนให้ นักเรียนเข้าเรียนเอง และเก็บผลแยกเป็นรายคน'}</p></div></div>
     {(!account.configReady || account.checking) && <p className="cloud-message" role="status">กำลังตรวจการเชื่อมต่อ…</p>}
     {(message || account.message) && <p className="cloud-message" role="alert">{message || account.message}</p>}
     {account.configReady && !account.config && <section className="cloud-panel">
@@ -58,8 +53,17 @@ export function TeacherPanel({ account, pending, onSelect, onLogout, syncNow, re
         <form onSubmit={configure} className="cloud-form"><label>Project URL<input type="url" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://ชื่อโปรเจกต์.supabase.co" required autoComplete="off"/></label><label>Publishable key<input value={key} onChange={e=>setKey(e.target.value)} required autoComplete="off" placeholder="sb_publishable_…"/></label><small>ใช้เฉพาะคีย์สาธารณะ ไม่ใช้ Secret หรือ service_role key</small><button className="primary" type="submit">บันทึกการเชื่อมต่อ<Icon name="arrow"/></button></form>
       </details>
     </section>}
-    {account.client && !account.user && <section className="cloud-panel auth-panel student-auth"><span className="cloud-symbol"><Icon name="book" size={28}/></span><h2>นักเรียนเข้าเรียน</h2><p>ใช้รหัสที่ครูให้ แล้วเริ่มฝึกด้วยตัวเองได้เลย</p><form className="cloud-form" onSubmit={learnerLogin}><label>รหัสเข้าเรียน<input value={loginId} onChange={e=>setLoginId(e.target.value)} inputMode="numeric" autoComplete="username" placeholder="ตัวเลข 10 หลัก" maxLength={14} required/></label><label>รหัสผ่านนักเรียน<input type="password" value={studentPassword} onChange={e=>setStudentPassword(e.target.value)} autoComplete="current-password" required/></label><button className="primary" disabled={busy} type="submit">{busy?'กำลังเข้าเรียน…':'เข้าเรียน'}<Icon name="arrow"/></button><small>ยังไม่มีรหัสหรือลืมรหัสผ่าน? ติดต่อครูผู้ดูแล</small></form></section>}
-    {account.client && !account.user && <section className="cloud-panel auth-panel"><span className="cloud-symbol"><Icon name="lock" size={28}/></span><h2>เข้าสู่ระบบครู</h2><p>ใช้บัญชีที่ผู้ดูแลเปิดสิทธิ์ไว้แล้ว</p><form className="cloud-form" onSubmit={login}><label>อีเมลครู<input type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username" required/></label><label>รหัสผ่าน<input type="password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" required minLength={6}/></label><button className="primary" disabled={busy} type="submit">{busy?'กำลังเข้าสู่ระบบ…':'เข้าสู่ระบบ'}<Icon name="arrow"/></button></form><button className="text-button" disabled={busy || !email.trim()} onClick={()=>void action(async()=>{const {error}=await account.client!.auth.resetPasswordForEmail(email.trim(),{redirectTo:window.location.origin+import.meta.env.BASE_URL});if(error)throw new Error('ส่งลิงก์ไม่สำเร็จ กรุณาลองอีกครั้ง');setMessage('หากอีเมลนี้มีบัญชี ให้ตรวจอีเมลเพื่อเปลี่ยนรหัสผ่าน');})}>ลืมรหัสผ่าน</button></section>}
+    {account.client && !account.user && <section className="cloud-panel auth-panel unified-auth" aria-label="แบบฟอร์มเข้าสู่ระบบ">
+      <fieldset className="login-roles"><legend>ประเภทบัญชี</legend><div className="role-options">{(['student','teacher'] as const).map(role=><label key={role} className={loginRole===role?'selected':''}><input type="radio" name="login-role" value={role} checked={loginRole===role} disabled={busy} onChange={()=>{setLoginRole(role);setPassword('');setMessage('');setShowPassword(false);}}/><Icon name={role==='student'?'book':'shield'} size={21}/><span>{role==='student'?'นักเรียน':'ครู'}</span></label>)}</div></fieldset>
+      <p className="login-help">{loginRole==='student'?'ใช้รหัสเข้าเรียนและรหัสผ่านที่ครูให้':'ใช้บัญชีอีเมลที่ผู้ดูแลเปิดสิทธิ์ครูไว้แล้ว'}</p>
+      <form className="cloud-form" onSubmit={login}>
+        {loginRole==='student'?<label>รหัสเข้าเรียน<input key="student-login" value={loginId} onChange={e=>setLoginId(e.target.value)} inputMode="numeric" autoComplete="username" placeholder="ตัวเลข 10 หลัก" maxLength={14} required disabled={busy}/></label>:<label>อีเมลครู<input key="teacher-login" type="email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="username" placeholder="name@example.com" required disabled={busy}/></label>}
+        <label>รหัสผ่าน<input type={showPassword?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="current-password" required disabled={busy}/></label>
+        <label className="password-visibility"><input type="checkbox" checked={showPassword} onChange={e=>setShowPassword(e.target.checked)}/>แสดงรหัสผ่าน</label>
+        <button className="primary" disabled={busy} type="submit">{busy?'กำลังเข้าสู่ระบบ…':'เข้าสู่ระบบ'}<Icon name="arrow"/></button>
+      </form>
+      {loginRole==='student'?<p className="login-footnote">ยังไม่มีรหัสหรือลืมรหัสผ่าน? ติดต่อครูผู้ดูแล</p>:<button className="text-button" disabled={busy || !email.trim()} onClick={()=>void action(async()=>{const {error}=await account.client!.auth.resetPasswordForEmail(email.trim(),{redirectTo:window.location.origin+import.meta.env.BASE_URL});if(error)throw new Error('ส่งลิงก์ไม่สำเร็จ กรุณาลองอีกครั้ง');setMessage('หากอีเมลนี้มีบัญชี ให้ตรวจอีเมลเพื่อเปลี่ยนรหัสผ่าน');})}>ลืมรหัสผ่าน</button>}
+    </section>}
     {account.user && account.recovery && <section className="cloud-panel auth-panel"><h2>ตั้งรหัสผ่านใหม่</h2><form className="cloud-form" onSubmit={e=>{e.preventDefault();void action(async()=>{const {error}=await account.client!.auth.updateUser({password});if(error)throw new Error('เปลี่ยนรหัสผ่านไม่สำเร็จ กรุณาลองอีกครั้ง');setPassword('');account.setRecovery(false);setMessage('เปลี่ยนรหัสผ่านแล้ว');});}}><label>รหัสผ่านใหม่<input type="password" value={password} onChange={e=>setPassword(e.target.value)} minLength={8} required autoComplete="new-password"/></label><button className="primary" disabled={busy}>บันทึกรหัสผ่านใหม่</button></form></section>}
     {account.user && <div className="teacher-account"><div><strong>{account.teacher?.display_name ?? account.learner?.display_name ?? 'บัญชีผู้ใช้'}</strong><span>{account.learner ? `รหัสเข้าเรียน ${account.learner.login_id}` : account.user.email}</span></div><div className="cloud-actions"><button className="text-button" disabled={busy || account.checking} onClick={account.reload}>{account.learner?'ตรวจบัญชีอีกครั้ง':'โหลดรายชื่ออีกครั้ง'}<Icon name="replay" size={18}/></button><button className="secondary" disabled={busy} onClick={onLogout}>ออกจากระบบ<Icon name="lock" size={18}/></button></div></div>}
     {account.learner && <section className="cloud-panel"><h2>พร้อมฝึกแล้ว {account.learner.display_name}</h2><p>ดาวและผลฝึกจะบันทึกในบัญชีของเธอ ครูดูความก้าวหน้าได้</p><button className="primary" onClick={()=>onSelect(account.learner)}>เริ่มฝึกของฉัน<Icon name="arrow"/></button><div className="cloud-actions student-sync"><button className="secondary" disabled={busy} onClick={()=>void action(syncNow)}>ส่งผลตอนนี้</button><button className="secondary" disabled={busy} onClick={refreshCloud}>โหลดผลล่าสุด</button><button className="text-button" onClick={exportCsv}>ส่งออก CSV</button></div>{pending>0&&<p>มี {pending} รอบฝึกรอส่ง เก็บผลในเครื่องแล้ว</p>}{conflicts>0&&<p role="alert">ผลรอบนี้เปลี่ยนจากอีกเครื่อง ส่งออกผลก่อนโหลดผลล่าสุด</p>}</section>}

@@ -1,4 +1,7 @@
+import { authenticatedDemo } from './fixtures';
 import { test, expect, type Page } from '@playwright/test';
+
+test.beforeEach(async ({ page }) => { await authenticatedDemo(page); });
 
 async function trackAudio(page: Page) {
   await page.addInitScript(() => {

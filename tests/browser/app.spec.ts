@@ -1,9 +1,12 @@
+import { authenticatedDemo } from './fixtures';
 import { test, expect, type Page } from '@playwright/test';
 import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
 import curriculum from '../../src/data/lessons.json' with { type: 'json' };
 
 const require = createRequire(import.meta.url);
+test.beforeEach(async ({ page }) => { await authenticatedDemo(page); });
+
 async function home(page: Page) { await page.goto('./'); await expect(page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true})).toBeVisible(); }
 async function answerAll(page: Page, id: number) {
   const lesson = curriculum.lessons.find(l=>l.id===id)!;
@@ -70,7 +73,7 @@ test('independent, retry, assisted and skipped results persist distinctly',async
   expect((await snapshot(page)).sessions[0].records.map((r:any)=>r.category)).toEqual(['retried','assisted','independent','skipped','independent']);
   await page.reload();
   await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'เข้าสู่ระบบครู',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'ผู้เรียนและบัญชีครู',exact:true})).toBeVisible();
   expect((await snapshot(page)).sessions[0].records.map((r:any)=>r.category)).toEqual(['retried','assisted','independent','skipped','independent']);
 });
 

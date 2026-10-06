@@ -6,6 +6,7 @@ import { clearPrivateCache } from './storage';
 export function useCloudAccount() {
   const [config, setConfig] = useState<CloudConfig | null>(null);
   const [configReady, setConfigReady] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [learner, setLearner] = useState<Student | null>(null);
@@ -26,11 +27,13 @@ export function useCloudAccount() {
 
   useEffect(() => {
     setUser(null); setTeacher(null); setLearner(null); setStudents([]); setStudent(null);
+    setAuthReady(false);
     if (!client) return;
     const { data } = client.auth.onAuthStateChange((event, session) => {
       const nextId = session?.user.id ?? null;
       if (identity.current !== nextId) { setTeacher(null); setLearner(null); setStudents([]); setStudent(null); identity.current = nextId; }
       setUser(session?.user ?? null);
+      setAuthReady(true);
       if (event === 'PASSWORD_RECOVERY') setRecovery(true);
     });
     return () => { data.subscription.unsubscribe(); client.auth.stopAutoRefresh(); };
@@ -57,7 +60,7 @@ export function useCloudAccount() {
         const saved = sessionStorage.getItem('readtech-student:' + config!.url + ':' + user.id);
         setStudent(list.find(s => s.id === saved) ?? null);
       }
-    })().catch(() => { if (alive) setMessage('เชื่อมฐานข้อมูลไม่ได้ ตรวจการเชื่อมต่อและการติดตั้งฐานข้อมูล แล้วลองโหลดอีกครั้ง'); }).finally(() => { if (alive) setChecking(false); });
+    })().catch(() => { if (alive) { setTeacher(null); setLearner(null); setStudents([]); setStudent(null); setMessage('เชื่อมฐานข้อมูลไม่ได้ จึงยังเปิดพื้นที่ส่วนตัวไม่ได้ กรุณาลองโหลดอีกครั้ง'); } }).finally(() => { if (alive) setChecking(false); });
     return () => { alive = false; };
   }, [client, user?.id, refresh]);
 
@@ -95,7 +98,7 @@ export function useCloudAccount() {
     }
     setRecovery(false); setMessage('');
   }
-  return { config, configReady, client, user, teacher, learner, students, student, checking, message, recovery, setRecovery, configure, selectStudent, addStudent, studentAccess, signOut, reload: () => setRefresh(x => x + 1) };
+  return { config, configReady, authReady, client, user, teacher, learner, students, student, checking, message, recovery, setRecovery, configure, selectStudent, addStudent, studentAccess, signOut, reload: () => setRefresh(x => x + 1) };
 }
 
 export type CloudAccount = ReturnType<typeof useCloudAccount>;

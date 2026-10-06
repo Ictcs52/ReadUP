@@ -35,6 +35,7 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
 export default function App() {
   const account = useCloudAccount();
   const store = useLearningStore(account);
+  const authorized = Boolean(account.user && ((account.teacher?.active && account.teacher.id === account.user.id) || (account.learner?.auth_user_id === account.user.id)));
   const canReport = Boolean(store.cloud && account.teacher && account.user?.id === account.teacher.id);
   const { data, setData, loaded, storageMessage, setStorageMessage } = store;
   const [page, setPage] = useState<Page>('home');
@@ -112,7 +113,7 @@ export default function App() {
     return () => clearInterval(timer);
   }, [page, pause, visible, sessionId, current?.answered, current?.status]);
 
-  function go(next: Page) { setPause(false); setPage(next === 'report' && !canReport ? 'account' : next); }
+  function go(next: Page) { setPause(false); setPage((!authorized && next !== 'about') || (next === 'report' && !canReport) ? 'account' : next); }
   function buttonSound(event: MouseEvent<HTMLDivElement>) {
     if (!data.settings.sound || !data.settings.effectsSound) return;
     const target = event.target instanceof Element ? event.target.closest('button') : null;
@@ -122,6 +123,7 @@ export default function App() {
     setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === sessionId ? markChanged(fn(s)) : s) }));
   }
   function start(id: number, indices?: number[], approved = false) {
+    if (!authorized) { go('account'); return; }
     if (active && active.lessonId === id && !indices && !approved) { setSessionId(active.id); go('exercise'); return; }
     if (active && !approved) { setConfirmStart({ id, indices }); return; }
     const target = lessons.find(l => l.id === id)!;
@@ -179,6 +181,17 @@ export default function App() {
     catch { setStorageMessage('ยังโหลดผลล่าสุดไม่ได้ ผลในเครื่องยังอยู่ กรุณาลองอีกครั้ง'); }
   }
 
+  if (!account.configReady || (account.config && !account.authReady) || account.checking) return <div className="loading"><BookFriend/><p>กำลังตรวจบัญชีของคุณ…</p></div>;
+  if (!authorized || account.recovery) return <div className="public-shell">
+    <a className="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
+    <header className="public-header"><button className="brand" onClick={()=>go('account')} aria-label="ReadTech Companion หน้าเข้าสู่ระบบ"><span className="brand-mark"><Icon name="book" size={27}/></span><span>ReadTech<small>COMPANION</small></span></button><button className="text-button" onClick={()=>go(page==='about'?'account':'about')}>{page==='about'?'กลับเข้าสู่ระบบ':'เกี่ยวกับ ReadTech'}</button></header>
+    {page==='about'&&!account.recovery?<main id="main" className="public-about"><span className="eyebrow pink">READTECH COMPANION</span><h1 tabIndex={-1}>เพื่อนร่วมทางการฝึกอ่าน</h1><BookFriend/><p>ฝึกทีละคำ พัฒนาไปทีละขั้น ผ่านภาพ เสียง และกิจกรรมสั้น ๆ</p><p>ครูลงทะเบียนผู้เรียนและติดตามผล นักเรียนใช้รหัสจากครูเพื่อเข้าเรียนด้วยตัวเอง ข้อมูลและกิจกรรมส่วนตัวเปิดหลังเข้าสู่ระบบเท่านั้น</p><p>รุ่นทดลองมีแบบฝึก LEVEL 1 จำนวน 5 บท ระดับอื่นเป็นแผนพัฒนา คะแนนเกมแยกจากการประเมินอ่านออกเสียงโดยครู</p><button className="primary" onClick={()=>go('account')}>เข้าสู่ระบบ<Icon name="arrow"/></button></main>:<main id="main" className="login-layout">
+      <section className="login-intro" aria-label="แนะนำ ReadTech"><span className="hero-tag"><Icon name="leaf" size={16}/>ทุกก้าวเล็ก ๆ มีความหมาย</span><h2>อ่านทีละคำ<br/><span>มั่นใจทีละนิด</span></h2><p>พื้นที่ฝึกอ่านของเธอ<br/>พร้อมเรียนรู้ในจังหวะของตัวเอง</p><BookFriend className="login-friend"/><span className="login-intro-note"><Icon name="heart" size={18}/>ครูดูแล · นักเรียนฝึกด้วยตัวเอง</span></section>
+      <div className="login-card"><TeacherPanel account={account} pending={0} conflicts={0} onSelect={()=>{}} onLogout={()=>void logout()} onSignedIn={role=>{setPage(role==='teacher'?'account':'home');}} syncNow={async()=>{}} refreshCloud={()=>{}} exportCsv={()=>{}}/></div>
+    </main>}
+    <footer className="public-footer">ฝึกทีละคำ พัฒนาไปทีละขั้น · ReadTech Companion</footer>
+  </div>;
+
   if (!loaded) return <div className="loading"><BookFriend /><p>กำลังเตรียมพื้นที่ฝึกอ่าน…</p></div>;
 
   function lessonCard(l: Lesson) {
@@ -197,7 +210,7 @@ export default function App() {
       <button className="brand" onClick={() => go('home')} aria-label="ReadTech Companion หน้าหลัก"><span className="brand-mark"><Icon name="book" size={27} /></span><span>ReadTech<small>COMPANION</small></span></button>
       <div className="sidebar-line" />
       <p className="nav-label">พื้นที่ของฉัน</p>
-      <nav aria-label="เมนูหลัก">{nav.filter(n => !account.learner || n.id !== 'report').map(n => <button key={n.id} className={'nav-item ' + (page === n.id ? 'active' : '')} aria-current={page === n.id ? 'page' : undefined} onClick={() => go(n.id)}><Icon name={n.icon} /><span>{n.text}</span>{page === n.id && <i />}</button>)}</nav>
+      <nav aria-label="เมนูหลัก">{nav.filter(n => !account.learner || n.id !== 'report').map(n => <button key={n.id} className={'nav-item ' + (page === n.id ? 'active' : '')} aria-current={page === n.id ? 'page' : undefined} onClick={() => go(n.id)}><Icon name={n.icon} /><span>{n.id==='account'&&account.learner?'บัญชีของฉัน':n.text}</span>{page === n.id && <i />}</button>)}</nav>
       <div className="sidebar-bottom"><div className="gentle-note"><Icon name="heart" /><p>ไม่ต้องรีบก็ได้<br/><strong>เติบโตในจังหวะของเรา</strong></p></div><button className="nav-item" onClick={() => go('settings')}><Icon name="settings" />ปรับการใช้งาน</button><button className="about-link" onClick={() => go('about')}>เกี่ยวกับนวัตกรรม · รุ่นทดลอง 0.1</button></div>
     </aside>}
 
@@ -209,9 +222,9 @@ export default function App() {
       {storageMessage && <div className="storage-warning" role="alert"><Icon name="info" /><span>{storageMessage}</span><button className="text-button" onClick={exportResults}>ส่งออกผล</button></div>}
       {store.cloud && store.syncMessage && <div className="storage-warning" role="status"><Icon name="info"/><span>{store.syncMessage}</span><button className="text-button" onClick={()=>go('account')}>จัดการผล</button></div>}
       <main id="main" ref={mainRef}>
-        {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{account.selectStudent(s);go('home');}} onLogout={()=>store.cloud && store.pending ? setConfirmLogout(true) : void logout()} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
+        {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{account.selectStudent(s);go('home');}} onLogout={()=>store.cloud && store.pending ? setConfirmLogout(true) : void logout()} onSignedIn={role=>go(role==='teacher'?'account':'home')} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
         {page === 'home' && <>
-          {!account.user && account.config && <div className="student-welcome"><div><strong>มีรหัสจากครูแล้ว?</strong><p>เข้าสู่ระบบเพื่อเก็บดาวและผลฝึกของตัวเอง</p></div><button className="primary" onClick={() => go('account')}>นักเรียนเข้าเรียน<Icon name="arrow"/></button></div>}
+
           <div className="page-heading"><div><span className="eyebrow pink">เพื่อนฝึกอ่านของเธอ</span><h1 tabIndex={-1}>สวัสดี นักอ่านคนเก่ง <span className="hello-spark" aria-hidden="true">✦</span></h1><p>วันนี้มาค่อย ๆ เรียนรู้ไปด้วยกันนะ</p></div><span className="pill"><span className="status-dot"/>พร้อมเริ่มต้นเสมอ</span></div>
           <section className="hero" aria-labelledby="hero-title">
             <div className="hero-copy"><span className="hero-tag"><Icon name="leaf" size={16}/>ทุกก้าวเล็ก ๆ มีความหมาย</span><h2 id="hero-title">อ่านทีละคำ<br/><span>มั่นใจทีละนิด</span></h2><p>ดูภาพ ฟังเสียง แล้วลองด้วยตัวเอง<br/>ไม่ต้องรีบ เราฝึกซ้ำได้เสมอ</p><button className="primary" onClick={() => start(active?.lessonId ?? lessons.find(l => !completedLessons.has(l.id))?.id ?? 1)}><Icon name={active ? 'replay' : 'book'} />{active ? 'ฝึกต่อจากครั้งก่อน' : 'เริ่มฝึกวันนี้'}<Icon name="arrow" /></button><span className="hero-meta"><Icon name="clock" size={16}/>ครั้งละประมาณ 5–10 นาที · พักได้ทุกเมื่อ</span></div>
@@ -284,7 +297,7 @@ export default function App() {
       </main>
       {page!=='exercise' && <footer className="app-footer"><span><Icon name="heart" size={14}/>เรียนรู้ด้วยความเข้าใจ ในจังหวะของตัวเอง</span><button onClick={()=>go('about')}>ReadTech Companion · รุ่นทดลอง</button></footer>}
     </div>
-    {page!=='exercise' && <nav className="mobile-nav" aria-label="เมนูหลักบนมือถือ">{nav.filter(n=>!account.learner || n.id!=='report').map(n=><button key={n.id} className={page===n.id?'active':''} aria-current={page===n.id?'page':undefined} onClick={()=>go(n.id)}><Icon name={n.icon}/><span>{n.text}</span></button>)}</nav>}
+    {page!=='exercise' && <nav className="mobile-nav" aria-label="เมนูหลักบนมือถือ">{nav.filter(n=>!account.learner || n.id!=='report').map(n=><button key={n.id} className={page===n.id?'active':''} aria-current={page===n.id?'page':undefined} onClick={()=>go(n.id)}><Icon name={n.icon}/><span>{n.id==='account'&&account.learner?'บัญชีของฉัน':n.text}</span></button>)}</nav>}
     {pause && <Modal title="พักสักนิดก็ได้" onClose={()=>setPause(false)}><BookFriend className="pause-friend"/><p>เก็บกิจกรรมที่ทำไว้แล้ว<br/>กลับมาฝึกต่อจากเดิมได้เสมอ</p><div className="dialog-actions"><button className="primary" onClick={()=>setPause(false)}>ฝึกต่อ<Icon name="arrow"/></button><button className="secondary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button></div></Modal>}
     {confirmStart && <Modal title="เริ่มรอบใหม่ไหม?" onClose={()=>setConfirmStart(null)}><p>ผลที่ทำในรอบเดิมยังอยู่ในรายงาน แต่รอบเดิมจะจบก่อนครบ และจะเริ่มบทที่เลือกจากข้อแรก</p><div className="dialog-actions"><button className="primary" onClick={()=>start(confirmStart.id,confirmStart.indices,true)}>เริ่มรอบใหม่</button><button className="secondary" onClick={()=>setConfirmStart(null)}>ยังไม่เริ่ม</button></div></Modal>}
     {confirmReset && <Modal title="ล้างผลในเครื่องนี้?" onClose={()=>setConfirmReset(false)}><p>ผลการฝึก รางวัล และข้อสังเกตของครูจะถูกล้าง กู้คืนในแอปไม่ได้ กรุณาส่งออก CSV ก่อนล้างผล</p><div className="dialog-actions"><button className="secondary" onClick={exportResults}><Icon name="download"/>ส่งออกก่อน</button><button className="primary" onClick={()=>{setData(d=>({...d,sessions:[]}));setSessionId(null);setSelectedReport(null);setConfirmReset(false);go('home');}}>ยืนยันล้างผล</button><button className="text-button" onClick={()=>setConfirmReset(false)}>ยกเลิก</button></div></Modal>}
