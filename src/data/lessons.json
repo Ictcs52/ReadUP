@@ -38,7 +38,7 @@
     ]},
     {"id":5,"title":"ภาพกับพยัญชนะต้น","description":"ดูภาพ ฟังคำ แล้วหาพยัญชนะต้น","mode":"initial","questions":[
       {"letter":"ก","word":"ไก่","speech":"ไก่","art":"chicken","options":["ก","ม","ร"]},
-      {"letter":"ป","word":"ปลา","speech":"ปลา","art":"fish","options":["ป","บ","ม"]},
+      {"letter":"ป","word":"ปลา","speech":"ปลา","art":"fish","options":["ป","ม","ล"],"prompt":"ปลา เริ่มต้นด้วยเสียงอะไร?","promptSpeech":"ปลา เริ่มต้นด้วยเสียงอะไร?"},
       {"letter":"ม","word":"ม้า","speech":"ม้า","art":"horse","options":["ม","ก","บ"]},
       {"letter":"ร","word":"เรือ","speech":"เรือ","art":"boat","options":["ร","ป","ก"]},
       {"letter":"บ","word":"ใบไม้","speech":"ใบไม้","art":"leaf","options":["บ","ม","ร"]}

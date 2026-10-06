@@ -52,3 +52,53 @@ test('a device without Thai speech gives clear help instead of reading Thai thro
   await expect(page.getByRole('status').filter({ hasText: 'เครื่องนี้ไม่มีเสียงภาษาไทย ให้ผู้ดูแลอ่านตัวอย่าง' })).toBeVisible();
   expect(await page.evaluate(() => (window as any).__spoken)).toEqual([]);
 });
+
+async function openFish(page: Page) {
+  await page.getByRole('button', { name: 'หน้าหลัก', exact: true }).click();
+  await page.getByRole('button', { name: 'บทเรียนของฉัน', exact: true }).click();
+  await page.getByRole('button', { name: 'เริ่มฝึก ภาพกับพยัญชนะต้น', exact: true }).click();
+  await page.getByRole('button', { name: 'ฝึกข้อนี้ภายหลัง', exact: true }).click();
+  await page.getByRole('button', { name: 'ข้อต่อไป', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'ปลา เริ่มต้นด้วยเสียงอะไร?' })).toBeVisible();
+}
+
+test('uploaded Thai-named M4A decodes and plays without device voices, replays and stops when answered', async ({ page }) => {
+  await page.addInitScript(() => {
+    const Native = window.Audio;
+    (window as any).__lessonAudio = [];
+    (window as any).Audio = function (src: string) {
+      const audio = new Native(src);
+      (window as any).__lessonAudio.push(audio);
+      return audio;
+    };
+  });
+  await mockSpeech(page, false);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openFish(page);
+  await expect(page.getByRole('button', { name: /^เลือก / })).toHaveCount(3);
+  for (const letter of ['ป', 'ม', 'ล']) await expect(page.getByRole('button', { name: `เลือก ${letter}`, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'ฟังคำถาม', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => {
+    const audio = (window as any).__lessonAudio[0];
+    return Boolean(audio && !audio.paused && audio.currentTime > 0 && audio.readyState >= 2 && !audio.error);
+  })).toBe(true);
+  expect(await page.evaluate(() => decodeURI((window as any).__lessonAudio[0].src))).toContain('/ReadUP/audio/ปลาเริ่มต้นด้วยเสียงอะไร.m4a');
+  expect(await page.evaluate(() => (window as any).__spoken)).toEqual([]);
+  await page.getByRole('button', { name: 'ฟังคำถาม', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__lessonAudio[1]?.currentTime > 0)).toBe(true);
+  expect(await page.evaluate(() => (window as any).__lessonAudio[0].paused)).toBe(true);
+  await page.getByRole('button', { name: 'เลือก ป', exact: true }).click();
+  expect(await page.evaluate(() => (window as any).__lessonAudio[1].paused)).toBe(true);
+  await expect(page.locator('.celebration-star')).toHaveCount(1);
+  await page.screenshot({ path: 'test-results/fish-recorded-mobile.png', fullPage: true });
+});
+
+test('an unavailable recorded question falls back once to Thai speech with the full question', async ({ page }) => {
+  await page.route('**/audio/*.m4a', route => route.abort());
+  await mockSpeech(page);
+  await openFish(page);
+  await page.getByRole('button', { name: 'ฟังคำถาม', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__spoken)).toEqual([
+    { text: 'ปลา เริ่มต้นด้วยเสียงอะไร?', lang: 'th-TH', voiceURI: 'th-one', rate: 0.85 },
+  ]);
+});

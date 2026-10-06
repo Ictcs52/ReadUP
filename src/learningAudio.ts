@@ -44,9 +44,9 @@ export function playLessonAudio(text: string, settings: Settings, onMessage: (me
   }
   const file = settings.recordedFirst ? recordings[text] : null;
   // Lesson recordings are public teaching assets in this repository, not student audio.
-  if (file && /^audio\/[a-zA-Z0-9_-]+\.(mp3|wav|ogg|m4a)$/i.test(file)) {
+  if (file && /^audio\/[\p{L}\p{M}\p{N}_ -]+\.(mp3|wav|ogg|m4a)$/iu.test(file)) {
     try {
-      const audio = new Audio(import.meta.env.BASE_URL + file);
+      const audio = new Audio(import.meta.env.BASE_URL + file.split('/').map(encodeURIComponent).join('/'));
       currentAudio = audio;
       audio.playbackRate = rate; audio.preservesPitch = true;
       let failed = false;
