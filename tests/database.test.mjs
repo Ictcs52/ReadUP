@@ -71,7 +71,11 @@ test('student accounts restrict reads and writes to self and preserve teacher as
     const folder = new URL('../supabase/migrations/', import.meta.url);
     for (const file of (await readdir(folder)).filter(x => x.endsWith('.sql')).sort()) await db.exec(await fs.readFile(new URL(file, folder), 'utf8'));
     await db.query('insert into public.readtech_teachers(id,display_name) values($1,$2)', [teacher, 'ครู']);
-    await db.query('insert into public.readtech_students(id,teacher_id,code,display_name,auth_user_id,login_id) values($1,$2,$3,$4,$5,$6),($7,$2,$8,$9,$10,$11)', [student,teacher,'S01','เด็กหนึ่ง',pupil,'1234567890',another,'S02','เด็กสอง',peer,'9876543210']);
+    await db.query('insert into public.readtech_students(id,teacher_id,code,display_name,auth_user_id,login_id) values($1,$2,$3,$4,$5,$6),($7,$2,$8,$9,$10,$11)', [student,teacher,'0123','เด็กหนึ่ง',pupil,'0123',another,'S02','เด็กสอง',peer,'9876543210']);
+    await db.query('update public.readtech_students set class_name=$1 where id=$2',['ป.1/1',student]);
+    await assert.rejects(db.query('update public.readtech_students set login_id=$1 where id=$2',['0123',another]),e=>e.code==='23505'||e.code==='23514');
+    await assert.rejects(db.query('update public.readtech_students set code=$1 where id=$2',['9999',student]),e=>e.code==='23514');
+    await assert.rejects(db.query('update public.readtech_students set class_name=$1 where id=$2',['x'.repeat(31),student]),e=>e.code==='23514');
     async function asUser(id, query, params=[]) {
       return db.transaction(async tx => {
         await tx.exec('set local role authenticated');
@@ -82,6 +86,9 @@ test('student accounts restrict reads and writes to self and preserve teacher as
     const payload = { id: round, lessonId: 1, contentVersion: 1, startedAt: 1000, status: 'active', questionIndices: [0,1], index: 0, records: [], wrongAttempts: 0, hintLevel: 0, currentMs: 0, answered: false, observation: { note:'fake assessment' } };
     const save = (uid, sid, rev, value) => asUser(uid,'select public.readtech_save_session($1,$2::jsonb,$3) as saved',[sid,JSON.stringify(value),rev]);
     assert.equal((await asUser(pupil,'select id from public.readtech_students')).rows.length,1);
+    assert.equal((await asUser(pupil,'select class_name from public.readtech_students')).rows[0].class_name,'ป.1/1');
+    assert.equal((await asUser(teacher,'update public.readtech_students set class_name=$1 where id=$2 returning class_name',['ป.2/1',student])).rows[0].class_name,'ป.2/1');
+    assert.equal((await asUser(pupil,'update public.readtech_students set class_name=$1 where id=$2 returning id',['ป.3',student])).rows.length,0);
     assert.equal((await asUser(pupil,'select id from public.readtech_teachers')).rows.length,0);
     assert.equal((await save(pupil,student,0,payload)).rows[0].saved.revision,1);
     assert.equal((await save(pupil,student,0,payload)).rows[0].saved.revision,1);

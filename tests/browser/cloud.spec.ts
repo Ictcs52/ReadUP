@@ -17,8 +17,8 @@ const pupil = '88888888-8888-4888-8888-888888888888';
 const peer = '99999999-9999-4999-8999-999999999999';
 function mockBackend() {
   const students = [
-    { id: first, teacher_id: owner, auth_user_id: pupil, login_id: '1234567890', login_enabled: true, code: 'RT001', display_name: 'นักอ่านหนึ่ง', created_at: '2026-10-06T00:00:00Z' },
-    { id: second, teacher_id: owner, auth_user_id: peer, login_id: '9876543210', login_enabled: true, code: 'RT002', display_name: 'นักอ่านสอง', created_at: '2026-10-06T00:01:00Z' },
+    { id: first, teacher_id: owner, auth_user_id: pupil, login_id: '1234567890', login_enabled: true, class_name: 'ป.1/1', code: 'RT001', display_name: 'นักอ่านหนึ่ง', created_at: '2026-10-06T00:00:00Z' },
+    { id: second, teacher_id: owner, auth_user_id: peer, login_id: '9876543210', login_enabled: true, class_name: 'ป.1/1', code: 'RT002', display_name: 'นักอ่านสอง', created_at: '2026-10-06T00:01:00Z' },
   ];
   const sessions = new Map<string, any>();
   let failWrites = false;
@@ -33,7 +33,7 @@ function mockBackend() {
       let uid = '';
       try { uid = JSON.parse(Buffer.from(bearer.split('.')[1], 'base64url').toString()).sub; } catch { /* Anonymous request. */ }
       if (url.pathname === '/auth/v1/token') {
-        uid = body.email === 'student-1234567890@students.readup.invalid' ? pupil : body.email === 'student-9876543210@students.readup.invalid' ? peer : body.email === 'other@example.test' ? other : body.email === 'unknown@example.test' ? unauthorized : owner;
+        uid = ['student-1234567890@students.readup.invalid','student-0123@students.readup.invalid'].includes(body.email) ? pupil : body.email === 'student-9876543210@students.readup.invalid' ? peer : body.email === 'other@example.test' ? other : body.email === 'unknown@example.test' ? unauthorized : owner;
         return route.fulfill({ json: { access_token: token(uid), token_type: 'bearer', refresh_token: 'test-refresh', expires_in: 3600, user: { id: uid, email: body.email, aud: 'authenticated', role: 'authenticated', created_at: '2026-10-06T00:00:00Z', app_metadata: {}, user_metadata: {} } } });
       }
       if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 });
@@ -50,12 +50,12 @@ function mockBackend() {
         if (uid !== owner) return route.fulfill({status:403,json:{error:'ไม่มีสิทธิ์ครู'}});
         let s = students.find(s=>s.id===body.studentId);
         if (body.action === 'register' && !s) {
-          s = {id:'77777777-7777-4777-8777-777777777777',teacher_id:owner,code:body.code,display_name:body.name,created_at:'2026-10-06T00:02:00Z',auth_user_id:'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa',login_id:'1112223334',login_enabled:true};students.push(s);
+          s = {id:'77777777-7777-4777-8777-777777777777',teacher_id:owner,code:body.code,display_name:body.name,created_at:'2026-10-06T00:02:00Z',auth_user_id:'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaaa',login_id:body.code,login_enabled:true,class_name:body.className};students.push(s);
         }
         if (!s) return route.fulfill({status:403,json:{error:'ไม่พบผู้เรียน'}});
         if (body.action==='disable') s.login_enabled=false;
         if (body.action==='enable') s.login_enabled=true;
-        return route.fulfill({json:{student:s,loginId:s.login_id,password:['disable','enable'].includes(body.action)?'':'112233445566'}});
+        return route.fulfill({json:{student:s,loginId:s.login_id,password:['disable','enable'].includes(body.action)?'':`RT-${s.login_id}`}});
       }
       if (url.pathname === '/rest/v1/readtech_sessions') {
         const studentId = url.searchParams.get('student_id')?.replace('eq.', '');
@@ -197,8 +197,9 @@ test('profiles isolate local drafts, creating a student works, and failed writes
   await expect(page.getByRole('button', { name: 'เริ่มฝึกวันนี้', exact: true })).toBeVisible();
   await expect(page.locator('.stat-number').filter({ hasText: '0 ดวง' })).toBeVisible();
   await openAccount(page);
-  await page.getByLabel('รหัสผู้เรียน', { exact: true }).fill('RT003');
-  await page.getByLabel('ชื่อเรียกผู้เรียน', { exact: true }).fill('นักอ่านสาม');
+  await page.getByLabel('เลขประจำตัว (4 หลัก)', { exact: true }).fill('0003');
+  await page.getByLabel('ชื่อ–สกุล', { exact: true }).fill('นักอ่านสาม');
+  await page.getByLabel('ชั้น',{exact:true}).fill('ป.2/1');
   await page.getByRole('button', { name: 'เพิ่มผู้เรียน', exact: true }).click();
   await expect(page.getByRole('button', { name: 'เลือกผู้เรียน นักอ่านสาม' })).toBeVisible();
   await page.getByRole('button', { name: 'เลือกผู้เรียน นักอ่านหนึ่ง', exact: true }).click();
@@ -290,7 +291,7 @@ test('teacher management fits a mobile screen and has no automated accessibility
 
 async function studentLogin(page: Page, code = '1234567890') {
   await page.goto('./'); await openAccount(page);
-  await page.getByLabel('รหัสเข้าเรียน', {exact:true}).fill(code);
+  await page.getByLabel('เลขประจำตัว', {exact:true}).fill(code);
   await page.getByLabel('รหัสผ่าน', {exact:true}).fill('112233445566');
   await page.getByRole('button', {name:'เข้าสู่ระบบ', exact:true}).click();
   await expect(page.getByRole('button', {name:'เริ่มฝึกวันนี้', exact:true})).toBeVisible();
@@ -298,15 +299,18 @@ async function studentLogin(page: Page, code = '1234567890') {
 
 test('teacher registration displays credentials once and can reset or suspend a student account', async ({page,context}) => {
   const backend=mockBackend();await backend.install(context);await login(page);
-  await page.getByLabel('รหัสผู้เรียน', {exact:true}).fill('RT003');
-  await page.getByLabel('ชื่อเรียกผู้เรียน', {exact:true}).fill('นักอ่านสาม');
+  await page.getByLabel('เลขประจำตัว (4 หลัก)', {exact:true}).fill('0003');
+  await page.getByLabel('ชื่อ–สกุล', {exact:true}).fill('นักอ่านสาม');
+  await page.getByLabel('ชั้น',{exact:true}).fill('ป.2/1');
   await page.getByRole('button', {name:'เพิ่มผู้เรียน', exact:true}).click();
-  await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('1112223334');
-  await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('112233445566');
+  await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('0003');
+  await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('RT-0003');
   await page.getByRole('button',{name:'เก็บรหัสแล้ว ปิดส่วนนี้',exact:true}).click();
   await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toHaveCount(0);
   const card=page.locator('.student-card').filter({hasText:'นักอ่านสาม'});
-  page.once('dialog',dialog=>dialog.accept());await card.getByRole('button',{name:'ออกรหัสผ่านใหม่',exact:true}).click();
+  await expect(card).toContainText('เลขประจำตัว 0003 · ป.2/1');
+  expect(backend.students.find(s=>s.code==='0003')?.class_name).toBe('ป.2/1');
+  page.once('dialog',dialog=>dialog.accept());await card.getByRole('button',{name:'คืนรหัสผ่านเริ่มต้น',exact:true}).click();
   await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toBeVisible();
   page.once('dialog',dialog=>dialog.accept());await card.getByRole('button',{name:'พักบัญชี',exact:true}).click();
   await expect(card.getByRole('button',{name:'เปิดบัญชี',exact:true})).toBeVisible();
@@ -357,10 +361,10 @@ test('signed-out visitors land on one login form and cannot see private pages',a
   for(const name of ['เริ่มฝึกวันนี้','บทเรียนของฉัน','รางวัลของฉัน','สำหรับครู','ผู้เรียน','ปรับการใช้งาน'])await expect(page.getByRole('button',{name,exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
- await expect(page.getByLabel('รหัสเข้าเรียน',{exact:true})).toBeVisible();
+ await expect(page.getByLabel('เลขประจำตัว',{exact:true})).toBeVisible();
  await page.getByRole('radio',{name:'ครู',exact:true}).check();
  await expect(page.getByLabel('อีเมลครู',{exact:true})).toBeVisible();
- await expect(page.getByLabel('รหัสเข้าเรียน',{exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('เลขประจำตัว',{exact:true})).toHaveCount(0);
  await expect(page.locator('form')).toHaveCount(1);
  await page.getByRole('button',{name:'เกี่ยวกับ ReadTech',exact:true}).click();
  await expect(page.getByRole('heading',{name:'เพื่อนร่วมทางการฝึกอ่าน',exact:true})).toBeVisible();
@@ -375,7 +379,7 @@ test('signed-out visitors land on one login form and cannot see private pages',a
 test('wrong credentials keep the visitor on the public login form',async({page,context})=>{
  const backend=mockBackend();await backend.install(context);
  await context.route('https://readtechtest.supabase.co/auth/v1/token**',route=>route.fulfill({status:400,json:{code:'invalid_credentials',msg:'Invalid login credentials'}}));
- await page.goto('./');await page.getByLabel('รหัสเข้าเรียน',{exact:true}).fill('1234567890');await page.getByLabel('รหัสผ่าน',{exact:true}).fill('incorrect');
+ await page.goto('./');await page.getByLabel('เลขประจำตัว',{exact:true}).fill('1234567890');await page.getByLabel('รหัสผ่าน',{exact:true}).fill('incorrect');
  await page.getByRole('button',{name:'เข้าสู่ระบบ',exact:true}).click();
  await expect(page.getByRole('alert')).toContainText('ไม่ถูกต้อง');
  await expect(page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true})).toHaveCount(0);
@@ -390,4 +394,18 @@ test('a failed role lookup keeps an authenticated account outside the protected 
  await expect(page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'สำหรับครู',exact:true})).toHaveCount(0);
  await expect(page.getByRole('heading',{name:'เพิ่มผู้เรียน',exact:true})).toHaveCount(0);
+});
+
+test('four-digit student ID retains leading zero in the login identity',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);
+ backend.students[0].code='0123';backend.students[0].login_id='0123';
+ let identity='';let password='';
+ page.on('request',request=>{if(request.url().includes('/auth/v1/token')){const body=request.postDataJSON();identity=body.email;password=body.password;}});
+ await page.goto('./');
+ await page.getByLabel('เลขประจำตัว',{exact:true}).fill('0123');
+ await page.getByLabel('รหัสผ่าน',{exact:true}).fill('RT-0123');
+ await page.getByRole('button',{name:'เข้าสู่ระบบ',exact:true}).click();
+ await expect(page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true})).toBeVisible();
+ expect(identity).toBe('student-0123@students.readup.invalid');expect(password).toBe('RT-0123');
+ await openAccount(page);await expect(page.getByText('เลขประจำตัว 0123 · ป.1/1',{exact:true})).toBeVisible();
 });

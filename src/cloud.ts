@@ -4,13 +4,14 @@ import type { Session } from './types';
 
 export type CloudConfig = { url: string; publishableKey: string };
 export type Teacher = { id: string; display_name: string; active: boolean };
-export type Student = { id: string; teacher_id: string; code: string; display_name: string; created_at: string; auth_user_id?: string | null; login_id?: string | null; login_enabled?: boolean };
+export type Student = { id: string; teacher_id: string; code: string; display_name: string; class_name?: string; created_at: string; auth_user_id?: string | null; login_id?: string | null; login_enabled?: boolean };
 export type StudentCredentials = { student: Student; loginId: string; password: string };
-export const studentColumns = 'id,teacher_id,code,display_name,created_at,auth_user_id,login_id,login_enabled';
+export const studentColumns = 'id,teacher_id,code,display_name,class_name,created_at,auth_user_id,login_id,login_enabled';
 
 export function studentLoginEmail(loginId: string) {
   const normalized = loginId.replace(/[\s-]/g, '');
-  if (!/^\d{10}$/.test(normalized)) throw new Error('รหัสเข้าเรียนเป็นตัวเลข 10 หลักที่ครูให้');
+  // Keep previously issued ten-digit logins usable while new registrations use the student ID.
+  if (!/^(?:[0-9]{4}|[0-9]{10})$/.test(normalized)) throw new Error('ใช้เลขประจำตัว 4 หลัก หรือรหัสเข้าเรียนเดิมที่ครูให้');
   return `student-${normalized}@students.readup.invalid`;
 }
 

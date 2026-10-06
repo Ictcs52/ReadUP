@@ -73,11 +73,12 @@ export function useCloudAccount() {
       if (value) sessionStorage.setItem(key, value.id); else sessionStorage.removeItem(key);
     }
   }
-  async function addStudent(code: string, name: string) {
+  async function addStudent(code: string, name: string, className: string) {
     if (!client || !teacher) throw new Error('กรุณาเข้าสู่ระบบครูก่อน');
-    code = code.trim(); name = name.trim();
-    if (!/^[A-Za-z0-9_-]{2,32}$/.test(code) || !name || name.length > 50) throw new Error('รหัสใช้ตัวอักษรอังกฤษ/ตัวเลข 2–32 ตัว และชื่อเรียกไม่เกิน 50 ตัว');
-    const result = await manageStudentLogin(client, { action: 'register', code, name });
+    code = code.trim(); name = name.trim(); className = className.trim();
+    if (!/^[0-9]{4}$/.test(code)) throw new Error('เลขประจำตัวต้องเป็นตัวเลข 4 หลัก');
+    if (!name || name.length > 100 || !className || className.length > 30) throw new Error('กรอกชื่อ–สกุลไม่เกิน 100 ตัว และชั้นไม่เกิน 30 ตัว');
+    const result = await manageStudentLogin(client, { action: 'register', code, name, className });
     setStudents(list => [...list, result.student]); return result;
   }
   async function studentAccess(value: Student, action: 'register' | 'reset' | 'disable' | 'enable') {

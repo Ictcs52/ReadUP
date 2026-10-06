@@ -7,7 +7,7 @@ const headers = {
   'Content-Type': 'application/json',
   'Cache-Control': 'no-store',
 };
-const columns = 'id,teacher_id,code,display_name,created_at,auth_user_id,login_id,login_enabled';
+const columns = 'id,teacher_id,code,display_name,class_name,created_at,auth_user_id,login_id,login_enabled';
 function reply(body: unknown, status = 200) { return new Response(JSON.stringify(body), { status, headers }); }
 function digits(length: number) {
   // Rejection sampling avoids biased modulo conversion and preserves leading zeroes.
@@ -57,41 +57,40 @@ Deno.serve(async req => {
       if (error) return reply({ error: 'เปลี่ยนสถานะบัญชีไม่สำเร็จ' }, 503);
       return reply({ student: data, loginId: data.login_id, password: '' });
     }
-    const password = digits(12);
+    const password = student?.login_id && /^[0-9]{4}$/.test(student.login_id) ? `RT-${student.login_id}` : digits(12);
     if (body.action === 'reset') {
       const { error } = await admin.auth.admin.updateUserById(student.auth_user_id, { password });
       if (error) return reply({ error: 'ออกรหัสผ่านใหม่ไม่สำเร็จ' }, 503);
       return reply({ student, loginId: student.login_id, password });
     }
     if (student?.auth_user_id) return reply({ error: 'มีบัญชีเข้าเรียนแล้ว ใช้ปุ่มออกรหัสผ่านใหม่ได้' }, 409);
-    const code = typeof body.code === 'string' ? body.code.trim() : '';
-    const name = typeof body.name === 'string' ? body.name.trim() : '';
-    if (!student && (!/^[A-Za-z0-9_-]{2,32}$/.test(code) || !name || name.length > 50)) return reply({ error: 'กรอกรหัสผู้เรียน 2–32 ตัวและชื่อเรียกไม่เกิน 50 ตัว' }, 400);
+    const code = student?.code ?? (typeof body.code === 'string' ? body.code.trim() : '');
+    const name = student?.display_name ?? (typeof body.name === 'string' ? body.name.trim() : '');
+    const className = student?.class_name ?? (typeof body.className === 'string' ? body.className.trim() : '');
+    if (!/^[0-9]{4}$/.test(code)) return reply({ error: 'เลขประจำตัวต้องเป็นตัวเลข 4 หลัก' }, 400);
+    if (!name || name.length > 100 || (!student && !className) || className.length > 30) return reply({ error: 'กรอกชื่อ–สกุลไม่เกิน 100 ตัว และชั้นไม่เกิน 30 ตัว' }, 400);
     if (!student) {
       const { data: duplicate, error } = await admin.from('readtech_students').select('id').eq('teacher_id', teacherId).eq('code', code).maybeSingle();
-      if (error) return reply({ error: 'ตรวจรหัสผู้เรียนไม่สำเร็จ' }, 503);
-      if (duplicate) return reply({ error: 'รหัสผู้เรียนนี้มีอยู่แล้ว ใช้รหัสอื่นได้' }, 409);
+      if (error) return reply({ error: 'ตรวจเลขประจำตัวไม่สำเร็จ' }, 503);
+      if (duplicate) return reply({ error: 'เลขประจำตัวนี้มีอยู่แล้ว' }, 409);
     }
-    let authUser: any = null;
-    let loginId = '';
-    for (let attempt = 0; attempt < 3; attempt++) {
-      loginId = digits(10);
-      const { data, error } = await admin.auth.admin.createUser({
-        email: `student-${loginId}@students.readup.invalid`, password, email_confirm: true,
-        app_metadata: { readtech_role: 'student' },
-      });
-      if (!error && data.user) { authUser = data.user; break; }
-      if (error?.code !== 'email_exists') return reply({ error: 'สร้างบัญชีไม่สำเร็จ กรุณาลองอีกครั้ง' }, 503);
-    }
-    if (!authUser) return reply({ error: 'สร้างรหัสไม่สำเร็จ กรุณาลองอีกครั้ง' }, 503);
+    // A four-digit student ID identifies exactly one login across all teachers.
+    const loginId = code;
+    const initialPassword = `RT-${loginId}`;
+    const { data: created, error: createError } = await admin.auth.admin.createUser({
+      email: `student-${loginId}@students.readup.invalid`, password: initialPassword, email_confirm: true,
+      app_metadata: { readtech_role: 'student' },
+    });
+    if (createError || !created.user) return reply({ error: createError?.code === 'email_exists' ? 'เลขประจำตัวนี้มีบัญชีเข้าเรียนแล้ว' : 'สร้างบัญชีไม่สำเร็จ กรุณาลองอีกครั้ง' }, createError?.code === 'email_exists' ? 409 : 503);
+    const authUser = created.user;
     // Conditional linking prevents simultaneous teacher requests from replacing an account.
     const result = student
       ? await admin.from('readtech_students').update({ auth_user_id: authUser.id, login_id: loginId, login_enabled: true }).eq('id', student.id).eq('teacher_id', teacherId).is('auth_user_id', null).select(columns).single()
-      : await admin.from('readtech_students').insert({ teacher_id: teacherId, code, display_name: name, auth_user_id: authUser.id, login_id: loginId, login_enabled: true }).select(columns).single();
+      : await admin.from('readtech_students').insert({ teacher_id: teacherId, code, display_name: name, class_name: className, auth_user_id: authUser.id, login_id: loginId, login_enabled: true }).select(columns).single();
     if (result.error) {
       await admin.auth.admin.deleteUser(authUser.id);
       return reply({ error: result.error.code === '23505' ? 'รหัสผู้เรียนซ้ำ กรุณาโหลดรายชื่ออีกครั้ง' : 'บันทึกบัญชีไม่สำเร็จ กรุณาโหลดรายชื่อก่อนลองใหม่' }, 409);
     }
-    return reply({ student: result.data, loginId, password });
+    return reply({ student: result.data, loginId, password: initialPassword });
   } catch { return reply({ error: 'ทำรายการไม่สำเร็จ กรุณาลองอีกครั้ง' }, 400); }
 });
