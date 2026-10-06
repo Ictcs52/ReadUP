@@ -70,7 +70,8 @@ test('independent, retry, assisted and skipped results persist distinctly',async
   expect((await snapshot(page)).sessions[0].records.map((r:any)=>r.category)).toEqual(['retried','assisted','independent','skipped','independent']);
   await page.reload();
   await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
-  await expect(page.getByText('ทำได้เองครั้งแรก 40%',{exact:false})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'เข้าสู่ระบบครู',exact:true})).toBeVisible();
+  expect((await snapshot(page)).sessions[0].records.map((r:any)=>r.category)).toEqual(['retried','assisted','independent','skipped','independent']);
 });
 
 test('reload resumes answered question without duplicating credit and preserves hints',async({page})=>{
@@ -108,18 +109,15 @@ test('planned levels never present incomplete lessons as playable',async({page})
   await expect(page.getByRole('button',{name:/เริ่มฝึก /})).toHaveCount(0);
 });
 
-test('CSV export includes teacher notes with injection protection and reset requires confirmation',async({page})=>{
+test('trial results can be exported and reset requires confirmation',async({page})=>{
   await home(page);
   await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
   await answerAll(page,1);
-  await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
-  await page.getByRole('button',{name:'ดูผล',exact:true}).click();
-  await page.getByRole('textbox',{name:'ข้อสังเกต (ไม่ใส่ชื่อจริงหรือข้อมูลสุขภาพ)'}).fill('=1+1');
-  const download=page.waitForEvent('download');
-  await page.getByRole('button',{name:'ส่งออก CSV',exact:true}).click();
-  const csv=await readFile((await (await download).path())!,'utf8');
-  expect(csv).toContain('"\'=1+1"');
   await page.getByRole('button',{name:'ปรับการใช้งาน',exact:true}).first().click();
+  const download=page.waitForEvent('download');
+  await page.getByRole('button',{name:'ส่งออกผล',exact:true}).click();
+  const csv=await readFile((await (await download).path())!,'utf8');
+  expect(csv).toContain('รู้จักพยัญชนะชุดแรก');
   await page.getByRole('button',{name:'ล้างผลเพื่อเปลี่ยนผู้เรียน'}).click();
   await page.getByRole('button',{name:'ยกเลิก',exact:true}).click();
   expect((await snapshot(page)).sessions.length).toBe(1);

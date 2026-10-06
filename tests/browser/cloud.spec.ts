@@ -1,5 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { createRequire } from 'node:module';
+import { readFile } from 'node:fs/promises';
+import curriculum from '../../src/data/lessons.json' with { type: 'json' };
 
 const require = createRequire(import.meta.url);
 const owner = '11111111-1111-4111-8111-111111111111';
@@ -97,6 +99,47 @@ test('an authenticated but unapproved account cannot open student management', a
   await expect(page.getByRole('alert')).toContainText('ยังไม่ได้รับสิทธิ์ครู');
   await expect(page.getByRole('heading', { name: 'เพิ่มผู้เรียน', exact: true })).toHaveCount(0);
   expect(backend.requests).not.toContain('/rest/v1/readtech_students');
+  await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'พื้นที่สำหรับครู',exact:true})).toHaveCount(0);
+});
+
+test('teacher reports require approved login and a selected learner on desktop and mobile', async ({ page, context }) => {
+  const backend = mockBackend(); await backend.install(context);
+  for (const width of [1440,390]) {
+    await page.setViewportSize({width,height:900}); await page.goto('./');
+    await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'เข้าสู่ระบบครู',exact:true})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'พื้นที่สำหรับครู',exact:true})).toHaveCount(0);
+  }
+  await page.setViewportSize({width:1440,height:1000}); await login(page);
+  await expect(page.getByRole('heading',{name:'เพิ่มผู้เรียน',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'ผู้เรียนและบัญชีครู',exact:true})).toBeVisible();
+  await selectFirst(page);
+  await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'พื้นที่สำหรับครู',exact:true})).toBeVisible();
+  await expect(page.getByText('รายงานของ นักอ่านหนึ่ง · RT001',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'ผู้เรียน',exact:true}).click();
+  await page.getByRole('button',{name:'ออกจากระบบ',exact:true}).click();
+  await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'เข้าสู่ระบบครู',exact:true})).toBeVisible();
+});
+
+test('approved teacher report exports learner identity and protects CSV notes from formulas', async ({ page, context }) => {
+  const backend = mockBackend(); await backend.install(context); await login(page); await selectFirst(page);
+  await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
+  const lesson=curriculum.lessons.find(l=>l.id===1)!;
+  for (let i=0;i<lesson.questions.length;i++) {
+    await page.getByRole('button',{name:`เลือก ${lesson.questions[i].letter}`,exact:true}).click();
+    await page.getByRole('button',{name:i===lesson.questions.length-1?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();
+  }
+  await page.getByRole('button',{name:'สำหรับครู',exact:true}).click();
+  await page.getByRole('button',{name:'ดูผล',exact:true}).click();
+  await page.getByRole('textbox',{name:'ข้อสังเกต (ไม่ใส่ชื่อจริงหรือข้อมูลสุขภาพ)'}).fill('=1+1');
+  const download=page.waitForEvent('download');
+  await page.getByRole('button',{name:'ส่งออก CSV',exact:true}).click();
+  const csv=await readFile((await (await download).path())!,'utf8');
+  expect(csv).toContain('RT001'); expect(csv).toContain('นักอ่านหนึ่ง'); expect(csv).toContain('"\'=1+1"');
 });
 
 test('central configuration opens teacher login on a new browser and survives a config fetch failure', async ({ page, context }) => {

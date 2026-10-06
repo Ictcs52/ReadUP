@@ -78,6 +78,7 @@ export default function App() {
   }, [store.scope]);
 
   useEffect(() => { if (account.recovery) setPage('account'); }, [account.recovery]);
+  useEffect(() => { if (page === 'report' && !store.cloud) setPage('account'); }, [page, store.cloud]);
 
   useEffect(() => {
     setChosen(null); setFeedback(''); setAudioMessage(''); setCelebrating(false);
@@ -110,7 +111,7 @@ export default function App() {
     return () => clearInterval(timer);
   }, [page, pause, visible, sessionId, current?.answered, current?.status]);
 
-  function go(next: Page) { setPause(false); setPage(next); }
+  function go(next: Page) { setPause(false); setPage(next === 'report' && !store.cloud ? 'account' : next); }
   function buttonSound(event: MouseEvent<HTMLDivElement>) {
     if (!data.settings.sound || !data.settings.effectsSound) return;
     const target = event.target instanceof Element ? event.target.closest('button') : null;
@@ -259,7 +260,7 @@ export default function App() {
           <div className="badge-grid">{[{name:'ก้าวแรกของฉัน',icon:'leaf',got:data.sessions.length>0,detail:'เริ่มกิจกรรมครั้งแรก'},{name:'ตั้งใจจนจบ',icon:'book',got:completed.length>0,detail:'ทำครบหนึ่งช่วงฝึก'},{name:'นักฝึกตัวอักษร',icon:'letters',got:completedLessons.size>=3,detail:'ทำครบ 3 บทเรียน'},{name:'กลับมาลองอีกครั้ง',icon:'replay',got:completed.some(s=>completed.filter(t=>t.lessonId===s.lessonId).length>=2),detail:'ฝึกบทเดิมครบมากกว่า 1 รอบ'}].map(b=><article className={'badge-card '+(!b.got?'not-yet':'')} key={b.name}><span className="badge-symbol"><Icon name={b.icon} size={38}/></span><h2>{b.name}</h2><p>{b.detail}</p><span className="badge-state">{b.got?'ได้รับแล้ว':'ค่อย ๆ สะสมได้'}</span></article>)}</div>
         </>}
 
-        {page === 'report' && <>
+        {page === 'report' && store.cloud && <>
           <div className="page-heading"><div><span className="eyebrow pink">ติดตามกิจกรรม ไม่ตัดสินผู้เรียน</span><h1 tabIndex={-1}>พื้นที่สำหรับครู</h1><p>{store.cloud?`ติดตามความก้าวหน้าของ ${account.student!.display_name}`:'ผลจากการทดลองบนเครื่องนี้'}</p></div><button className="secondary" disabled={!data.sessions.some(s=>s.records.length)} onClick={exportResults}><Icon name="download"/>ส่งออก CSV</button></div>
           <div className="notice"><Icon name="shield"/><div><strong>{store.cloud?`รายงานของ ${account.student!.display_name} · ${account.student!.code}`:'โหมดทดลอง · ผลเฉพาะในเครื่องนี้'}</strong><p>{store.cloud?'ผลแยกตามผู้เรียนและบัญชีครู ตรวจสถานะรอส่งก่อนเปลี่ยนเครื่องได้ในหน้าผู้เรียน':'ใช้หน้าผู้เรียนเพื่อเข้าสู่ระบบครูและเลือกผู้เรียน หากทดลองโดยไม่เชื่อมฐานข้อมูล ผลจะอยู่ในเบราว์เซอร์นี้'} คะแนนกิจกรรมแยกจากการประเมินอ่านออกเสียงของครู</p></div></div>
           <div className="report-stats">{[{label:'ทำได้เองครั้งแรก',value:total.independent},{label:'ทำได้หลังลองใหม่',value:total.retried},{label:'ทำได้หลังช่วย',value:total.assisted},{label:'เก็บไว้ฝึกภายหลัง',value:total.skipped}].map(x=><div className="report-stat" key={x.label}><strong>{x.value}<small> ข้อ</small></strong><span>{x.label}</span></div>)}</div>
