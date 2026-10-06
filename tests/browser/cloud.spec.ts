@@ -222,7 +222,7 @@ test('learner drafts persist independently and teacher registration preserves th
  expect([...backend.sessions.values()][0].student_id).toBe(first);
  await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();await expect(page.getByRole('heading',{name:'เข้าสู่ระบบ',exact:true})).toBeVisible();
  await login(page);await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();
- await page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true}).fill('0003');await page.getByLabel('ชื่อ–สกุล',{exact:true}).fill('นักอ่านสาม');await page.getByLabel('ชั้น',{exact:true}).fill('ป.2/1');
+ await page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true}).fill('0003');await page.getByLabel('ชื่อ–สกุล',{exact:true}).fill('นักอ่านสาม');await page.getByLabel('ชั้น',{exact:true}).selectOption('ป.2');
  await page.getByRole('button',{name:'บันทึกผู้เรียน',exact:true}).click();await expect(page.getByRole('button',{name:'เลือกผู้เรียน นักอ่านสาม'})).toBeVisible();
  await page.getByRole('button',{name:'ล้างตัวกรอง',exact:true}).click();await selectFirst(page);
  await expect(page.getByRole('heading',{name:'รายงานผู้เรียน',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true})).toHaveCount(0);
@@ -316,7 +316,7 @@ test('teacher registration displays credentials once and can reset or suspend a 
   await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();
   await page.getByLabel('เลขประจำตัว (4 หลัก)', {exact:true}).fill('0003');
   await page.getByLabel('ชื่อ–สกุล', {exact:true}).fill('นักอ่านสาม');
-  await page.getByLabel('ชั้น',{exact:true}).fill('ป.2/1');
+  await page.getByLabel('ชั้น',{exact:true}).selectOption('ป.2');
   await page.getByRole('button', {name:'บันทึกผู้เรียน', exact:true}).click();
   await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('0003');
   await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toContainText('RT-0003');
@@ -324,9 +324,9 @@ test('teacher registration displays credentials once and can reset or suspend a 
   await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toHaveCount(0);
   const card=page.locator('.roster-row').filter({hasText:'นักอ่านสาม'});
   await expect(card).toContainText('เลขประจำตัว 0003');
-  await expect(card).toContainText('ป.2/1');
+  await expect(card).toContainText('ป.2');
   await card.getByRole('button',{name:'จัดการบัญชี นักอ่านสาม',exact:true}).click();
-  expect(backend.students.find(s=>s.code==='0003')?.class_name).toBe('ป.2/1');
+  expect(backend.students.find(s=>s.code==='0003')?.class_name).toBe('ป.2');
   page.once('dialog',dialog=>dialog.accept());await card.getByRole('button',{name:'คืนรหัสผ่านเริ่มต้น',exact:true}).click();
   await expect(page.getByRole('region',{name:'รหัสเข้าเรียนที่สร้างแล้ว'})).toBeVisible();
   page.once('dialog',dialog=>dialog.accept());await card.getByRole('button',{name:'พักบัญชี',exact:true}).click();
@@ -565,7 +565,7 @@ test('large teacher roster searches and combines filters across pages on desktop
  await expect(roster.locator('.roster-row')).toHaveCount(1);await expect(roster.locator('.roster-row')).toContainText('ผู้เรียนทดสอบ 123');
  await expect(roster.getByRole('status')).toContainText('พบ 1 จาก 125 คน');
  await roster.getByRole('button',{name:'ล้างตัวกรอง',exact:true}).click();
- await roster.getByLabel('ชั้นเรียน',{exact:true}).selectOption('ป.2/1');
+ await roster.getByLabel('ชั้นเรียน',{exact:true}).selectOption('ป.2');
  await roster.getByLabel('สถานะบัญชี',{exact:true}).selectOption('paused');
  await expect(roster.getByRole('status')).toContainText('พบ 20 จาก 125 คน');
  await expect(roster.locator('.roster-row')).toHaveCount(10);
@@ -599,7 +599,7 @@ test('compact registration closes on success and keeps fields for a retry after 
  await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();
  await expect(page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true})).toBeFocused();
  await page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true}).fill('0003');
- await page.getByLabel('ชื่อ–สกุล',{exact:true}).fill('นักอ่านสาม');await page.getByLabel('ชั้น',{exact:true}).fill('ป.2/1');
+ await page.getByLabel('ชื่อ–สกุล',{exact:true}).fill('นักอ่านสาม');await page.getByLabel('ชั้น',{exact:true}).selectOption('ป.2');
  let fail=true;
  await context.route('**/functions/v1/readtech-student-accounts',async route=>{if(fail)return route.fulfill({status:409,json:{error:'เลขประจำตัวนี้มีบัญชีแล้ว'}});return route.fallback();});
  await page.getByRole('button',{name:'บันทึกผู้เรียน',exact:true}).click();
@@ -633,7 +633,7 @@ test('teacher sees reports only while selected and can edit a student without lo
  await openAccount(page);await page.getByRole('button',{name:'จัดการบัญชี นักอ่านหนึ่ง',exact:true}).click();await page.getByRole('button',{name:'แก้ไขข้อมูล',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'แก้ไขข้อมูลผู้เรียน',exact:true});
  await expect(dialog.getByLabel('เลขประจำตัว',{exact:true})).toHaveValue('0123');
- await dialog.getByLabel('ชื่อ–สกุล',{exact:true}).fill('ชื่อที่แก้ไข');await dialog.getByLabel('ชั้น',{exact:true}).fill('ป.2/3');
+ await dialog.getByLabel('ชื่อ–สกุล',{exact:true}).fill('ชื่อที่แก้ไข');await dialog.getByLabel('ชั้น',{exact:true}).selectOption('ป.3');
  await dialog.getByLabel('เลขประจำตัว',{exact:true}).fill('RT002'); // Native four-digit validation will also block invalid values.
  await dialog.getByRole('button',{name:'บันทึกการแก้ไข',exact:true}).click();await expect(dialog).toBeVisible();
  await dialog.getByLabel('เลขประจำตัว',{exact:true}).fill('0456');
@@ -642,7 +642,7 @@ test('teacher sees reports only while selected and can edit a student without lo
  await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
  expect(await page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>v.id))).toEqual([]);
  await dialog.getByRole('button',{name:'บันทึกการแก้ไข',exact:true}).click();await expect(dialog).toHaveCount(0);
- await expect(page.locator('.roster-row')).toContainText('ชื่อที่แก้ไข');await expect(page.locator('.roster-row')).toContainText('0456');await expect(page.locator('.roster-row')).toContainText('ป.2/3');
+ await expect(page.locator('.roster-row')).toContainText('ชื่อที่แก้ไข');await expect(page.locator('.roster-row')).toContainText('0456');await expect(page.locator('.roster-row')).toContainText('ป.3');
  expect(backend.students[0].id).toBe(first);expect(backend.students[0].login_id).toBe('0456');expect(backend.sessions.get(id).payload).toEqual(payload);
  await page.getByRole('button',{name:'เลือกผู้เรียน ชื่อที่แก้ไข',exact:true}).click();await expect(page.getByText('รายงานของ ชื่อที่แก้ไข · 0456',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'ดูผล',exact:true}).click();await page.getByRole('textbox',{name:'ข้อสังเกต (ไม่ใส่ชื่อจริงหรือข้อมูลสุขภาพ)'}).fill('ครูดูแล้ว');
@@ -662,4 +662,44 @@ test('edit dialog retains fields on duplicate ID or server failure and cancellat
  await expect(dialog.getByRole('alert')).toContainText('บันทึกไม่สำเร็จ');
  await dialog.getByRole('button',{name:'ยกเลิก',exact:true}).click();await expect(dialog).toHaveCount(0);expect(backend.students[0].code).toBe('0123');
  await expect(page.getByRole('button',{name:'แก้ไขข้อมูล',exact:true})).toBeFocused();
+});
+
+test('registration and editing use the same six master grade choices and preserve legacy classroom data until saved',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);await login(page);
+ await page.getByRole('button',{name:'เพิ่มผู้เรียน',exact:true}).click();
+ const registration=page.getByRole('region',{name:'ลงทะเบียนผู้เรียน',exact:true});
+ const grade=registration.getByRole('combobox',{name:'ชั้น',exact:true});
+ await expect(grade.locator('option')).toHaveText(['เลือกชั้น','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6']);
+ await registration.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true}).fill('0003');await registration.getByLabel('ชื่อ–สกุล',{exact:true}).fill('นักอ่านชั้นหก');
+ const before=backend.requests.filter(path=>path==='/functions/v1/readtech-student-accounts').length;
+ await registration.getByRole('button',{name:'บันทึกผู้เรียน',exact:true}).click();
+ expect(backend.requests.filter(path=>path==='/functions/v1/readtech-student-accounts').length).toBe(before);
+ await grade.selectOption('ป.6');await registration.getByRole('button',{name:'บันทึกผู้เรียน',exact:true}).click();
+ await expect(page.locator('.roster-row')).toContainText('ป.6');expect(backend.students.find(s=>s.code==='0003')?.class_name).toBe('ป.6');
+ await page.getByRole('button',{name:'ล้างตัวกรอง',exact:true}).click();
+ await page.getByRole('button',{name:'จัดการบัญชี นักอ่านหนึ่ง',exact:true}).click();await page.getByRole('button',{name:'แก้ไขข้อมูล',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'แก้ไขข้อมูลผู้เรียน',exact:true});const editGrade=dialog.getByRole('combobox',{name:'ชั้น',exact:true});
+ await expect(editGrade.locator('option')).toHaveText(['เลือกชั้น','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6']);await expect(editGrade).toHaveValue('ป.1');
+ await dialog.getByRole('button',{name:'ยกเลิก',exact:true}).click();expect(backend.students[0].class_name).toBe('ป.1/1');
+ await page.getByRole('button',{name:'แก้ไขข้อมูล',exact:true}).click();await dialog.getByRole('combobox',{name:'ชั้น',exact:true}).selectOption('ป.4');
+ await dialog.getByRole('button',{name:'บันทึกการแก้ไข',exact:true}).click();await expect(dialog).toHaveCount(0);expect(backend.students[0].class_name).toBe('ป.4');
+});
+
+test('report grade filter limits learners, retains matching selection and clears a report outside the selected grade',async({page,context})=>{
+ const backend=mockBackend();backend.students[1].class_name='ป.2';await backend.install(context);await login(page);await selectFirst(page);
+ const grade=page.getByRole('combobox',{name:'กรองชั้นเรียน',exact:true});const students=page.getByRole('combobox',{name:'ผู้เรียนที่ต้องการดูรายงาน',exact:true});
+ await expect(grade.locator('option')).toHaveText(['ทุกชั้น','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6']);
+ await grade.selectOption('ป.1');await expect(students).toHaveValue(first);await expect(students.locator('option')).toHaveCount(2);
+ await expect(page.getByText('รายงานของ นักอ่านหนึ่ง · RT001',{exact:true})).toBeVisible();
+ await grade.selectOption('ป.2');await expect(grade).toHaveValue('ป.2');await expect(students).toHaveValue('');await expect(students.locator('option')).toHaveCount(2);
+ await expect(page.getByText('รายงานของ นักอ่านหนึ่ง · RT001',{exact:true})).toHaveCount(0);
+ await students.selectOption(second);await expect(grade).toHaveValue('ป.2');await expect(page.getByText('รายงานของ นักอ่านสอง · RT002',{exact:true})).toBeVisible();
+ await grade.selectOption('ป.6');await expect(grade).toHaveValue('ป.6');await expect(students).toBeDisabled();await expect(page.getByText('พบ 0 คนจากตัวกรองชั้นเรียน',{exact:true})).toBeVisible();
+ await expect(page.getByText('รายงานของ นักอ่านสอง · RT002',{exact:true})).toHaveCount(0);
+ await grade.selectOption('');await expect(students).toBeEnabled();await expect(students.locator('option')).toHaveCount(3);
+ await students.selectOption(first);await grade.selectOption('ป.1');
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await expect(grade).toBeVisible();await expect(students).toBeVisible();}
+ await page.screenshot({path:'test-results/report-grade-filter-mobile.png',fullPage:true});
+ await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+ expect(await page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>({id:v.id,nodes:v.nodes.map((n:any)=>({target:n.target,failureSummary:n.failureSummary}))})))).toEqual([]);
 });

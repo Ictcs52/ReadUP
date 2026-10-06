@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { GRADE_LEVELS, gradeOf, matchesGrade } from '../gradeLevels';
 import type { Student } from '../cloud';
 import { StudentEdit } from './StudentEdit';
 import { Icon } from './Icon';
@@ -36,12 +37,11 @@ export function StudentRoster({ students, selectedId, busy, onSelect, onAccess, 
   useEffect(() => {
     if (!adding && !busy && restoreFocus.current) { restoreFocus.current = false; addButton.current?.focus(); }
   }, [adding, busy]);
-  const classes = useMemo(() => [...new Set(students.map(s => s.class_name?.trim() || ''))].sort(collator.compare), [students]);
   const filtered = useMemo(() => {
     const terms = query.normalize('NFC').trim().toLocaleLowerCase('th').split(/\s+/).filter(Boolean);
     return students.filter(s => {
       const text = `${s.display_name} ${s.code} ${s.login_id || ''} ${s.class_name || ''}`.normalize('NFC').toLocaleLowerCase('th');
-      return terms.every(term => text.includes(term)) && (!classFilter || (s.class_name?.trim() || '') === (classFilter === '__none__' ? '' : classFilter)) && (!statusFilter || statusOf(s) === statusFilter);
+      return terms.every(term => text.includes(term)) && matchesGrade(s.class_name,classFilter) && (!statusFilter || statusOf(s) === statusFilter);
     }).sort((a, b) => collator.compare(a.code, b.code) || collator.compare(a.display_name, b.display_name));
   }, [students, query, classFilter, statusFilter]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -64,14 +64,14 @@ export function StudentRoster({ students, selectedId, busy, onSelect, onAccess, 
       }}>
         <label>เลขประจำตัว (4 หลัก)<input autoFocus value={code} onChange={event=>setCode(event.target.value)} inputMode="numeric" placeholder="เช่น 0123" pattern="[0-9]{4}" minLength={4} maxLength={4} required autoComplete="off" disabled={busy}/></label>
         <label>ชื่อ–สกุล<input value={name} onChange={event=>setName(event.target.value)} placeholder="ชื่อและนามสกุล" maxLength={100} required autoComplete="off" disabled={busy}/></label>
-        <label>ชั้น<input value={className} onChange={event=>setClassName(event.target.value)} placeholder="เช่น ป.1/1" maxLength={30} required autoComplete="off" disabled={busy}/></label>
+        <label>ชั้น<select aria-label="ชั้น" value={className} onChange={event=>setClassName(event.target.value)} required disabled={busy}><option value="">เลือกชั้น</option>{GRADE_LEVELS.map(grade=><option key={grade} value={grade}>{grade}</option>)}</select></label>
         <p className="registration-hint">ชื่อผู้ใช้: {code || 'เลขประจำตัว 4 หลัก'} · รหัสผ่านเริ่มต้น: RT-{code || 'เลขประจำตัว'}</p>
         <div className="cloud-actions"><button className="primary" disabled={busy} type="submit">{busy ? 'กำลังลงทะเบียน…' : 'บันทึกผู้เรียน'}<Icon name="check" size={18}/></button><button className="text-button" disabled={busy} type="button" onClick={closeForm}>ยกเลิก</button></div>
       </form>
     </section>}
     <div className="roster-filters">
       <label className="roster-search">ค้นหาผู้เรียน<input type="search" value={query} onChange={event=>{setQuery(event.target.value);setPage(1);}} placeholder="ชื่อ หรือเลขประจำตัว"/></label>
-      <label>ชั้นเรียน<select aria-label="ชั้นเรียน" value={classFilter} onChange={event=>{setClassFilter(event.target.value);setPage(1);}}><option value="">ทุกชั้น</option>{classes.map(value=><option key={value || '__none__'} value={value || '__none__'}>{value || 'ยังไม่ระบุชั้น'}</option>)}</select></label>
+      <label>ชั้นเรียน<select aria-label="ชั้นเรียน" value={classFilter} onChange={event=>{setClassFilter(event.target.value);setPage(1);}}><option value="">ทุกชั้น</option>{GRADE_LEVELS.map(value=><option key={value} value={value}>{value}</option>)}{students.some(s=>!s.class_name?.trim()) && <option value="__none__">ยังไม่ระบุชั้น</option>}{students.some(s=>s.class_name?.trim() && !gradeOf(s.class_name)) && <option value="__other__">ข้อมูลชั้นอื่นเดิม</option>}</select></label>
       <label>สถานะบัญชี<select aria-label="สถานะบัญชี" value={statusFilter} onChange={event=>{setStatusFilter(event.target.value);setPage(1);}}><option value="">ทุกสถานะ</option>{Object.entries(statusLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
     </div>
     <div className="roster-result"><p role="status">{hasFilters ? `พบ ${filtered.length} จาก ${students.length} คน` : `ทั้งหมด ${students.length} คน`}{filtered.length > 0 ? ` · แสดง ${start+1}–${Math.min(start+pageSize,filtered.length)}` : ''}</p>{hasFilters && <button className="text-button" onClick={clearFilters}>ล้างตัวกรอง<Icon name="close" size={16}/></button>}</div>

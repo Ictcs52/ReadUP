@@ -59,7 +59,8 @@ Deno.serve(async req => {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
       const className = typeof body.className === 'string' ? body.className.trim() : '';
       if (code !== student.code && !/^[0-9]{4}$/.test(code)) return reply({ error: 'เลขประจำตัวใหม่ต้องเป็นตัวเลข 4 หลัก' }, 400);
-      if (!code || !name || name.length > 100 || !className || className.length > 30) return reply({ error: 'กรอกเลขประจำตัว ชื่อ–สกุล และชั้นให้ครบ' }, 400);
+      if (!/^ป\.[1-6]$/.test(className)) return reply({ error: 'เลือกชั้น ป.1–ป.6' }, 400);
+      if (!code || !name || name.length > 100) return reply({ error: 'กรอกเลขประจำตัว ชื่อ–สกุล และชั้นให้ครบ' }, 400);
       if (body.expected?.code !== student.code || body.expected?.name !== student.display_name || body.expected?.className !== student.class_name) return reply({ error: 'ข้อมูลเปลี่ยนจากอีกเครื่อง กรุณาโหลดรายชื่อแล้วแก้ไขใหม่' }, 409);
       const { data: duplicate, error: duplicateError } = await admin.from('readtech_students').select('id').eq('teacher_id', teacherId).eq('code', code).neq('id', student.id).maybeSingle();
       if (duplicateError) return reply({ error: 'ตรวจเลขประจำตัวไม่สำเร็จ' }, 503);
@@ -112,7 +113,8 @@ Deno.serve(async req => {
     const name = student?.display_name ?? (typeof body.name === 'string' ? body.name.trim() : '');
     const className = student?.class_name ?? (typeof body.className === 'string' ? body.className.trim() : '');
     if (!/^[0-9]{4}$/.test(code)) return reply({ error: 'เลขประจำตัวต้องเป็นตัวเลข 4 หลัก' }, 400);
-    if (!name || name.length > 100 || (!student && !className) || className.length > 30) return reply({ error: 'กรอกชื่อ–สกุลไม่เกิน 100 ตัว และชั้นไม่เกิน 30 ตัว' }, 400);
+    if (!student && !/^ป\.[1-6]$/.test(className)) return reply({ error: 'เลือกชั้น ป.1–ป.6' }, 400);
+    if (!name || name.length > 100 || className.length > 30) return reply({ error: 'กรอกชื่อ–สกุลไม่เกิน 100 ตัว และชั้นไม่เกิน 30 ตัว' }, 400);
     if (!student) {
       const { data: duplicate, error } = await admin.from('readtech_students').select('id').eq('teacher_id', teacherId).eq('code', code).maybeSingle();
       if (error) return reply({ error: 'ตรวจเลขประจำตัวไม่สำเร็จ' }, 503);

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { cloudClient, readCloudConfig, saveCloudConfig, manageStudentLogin, studentColumns, type CloudConfig, type Student, type Teacher } from './cloud';
+import { isGradeLevel } from './gradeLevels';
 import { clearPrivateCache } from './storage';
 
 export function useCloudAccount() {
@@ -77,7 +78,7 @@ export function useCloudAccount() {
     if (!client || !teacher) throw new Error('กรุณาเข้าสู่ระบบครูก่อน');
     code = code.trim(); name = name.trim(); className = className.trim();
     if (!/^[0-9]{4}$/.test(code)) throw new Error('เลขประจำตัวต้องเป็นตัวเลข 4 หลัก');
-    if (!name || name.length > 100 || !className || className.length > 30) throw new Error('กรอกชื่อ–สกุลไม่เกิน 100 ตัว และชั้นไม่เกิน 30 ตัว');
+    if (!name || name.length > 100 || !isGradeLevel(className)) throw new Error('กรอกชื่อ–สกุลไม่เกิน 100 ตัว และเลือกชั้น ป.1–ป.6');
     const result = await manageStudentLogin(client, { action: 'register', code, name, className });
     setStudents(list => [...list, result.student]); return result;
   }

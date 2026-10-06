@@ -6,6 +6,8 @@ import { exportCsv, orderedOptions, percent, resultCategory, reviewItems, summar
 import type { Lesson, Observation, Session } from './types';
 import { useCloudAccount } from './useCloudAccount';
 import { markChanged, useLearningStore } from './useLearningStore';
+import { matchesGrade } from './gradeLevels';
+import { ReportStudentPicker } from './components/ReportStudentPicker';
 import { LearnerHistory } from './components/LearnerHistory';
 import { TeacherPanel } from './components/TeacherPanel';
 import { Icon } from './components/Icon';
@@ -39,9 +41,13 @@ export default function App() {
   const canOpenReport = Boolean(account.teacher?.active && account.user?.id === account.teacher.id);
   const teacherReportOnly = Boolean(canOpenReport && store.cloud);
   const canPractice = authorized && !teacherReportOnly;
-  const canReport = Boolean(store.cloud && canOpenReport);
+
   const { data, setData, loaded, storageMessage, setStorageMessage } = store;
   const [page, setPage] = useState<Page>('home');
+  const [reportGrade, setReportGrade] = useState('');
+  const canReport = Boolean(store.cloud && canOpenReport && matchesGrade(account.student?.class_name,reportGrade));
+  useEffect(()=>setReportGrade(''),[account.user?.id]);
+  useEffect(()=>{if(page==='report' && account.student && !matchesGrade(account.student.class_name,reportGrade))account.selectStudent(null);},[page,reportGrade,account.student?.id,account.student?.class_name]);
   const [level, setLevel] = useState(1);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [pause, setPause] = useState(false);
@@ -238,7 +244,7 @@ export default function App() {
             <button className={page === 'report' ? 'active' : ''} aria-current={page === 'report' ? 'page' : undefined} onClick={()=>go('report')}><Icon name="chart" size={18}/>รายงานผู้เรียน</button>
           </nav>
         </div>}
-        {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{account.selectStudent(s);setPage(account.teacher && s?'report':'home');}} onLogout={requestLogout} onSignedIn={role=>go(role==='teacher'?'account':'home')} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
+        {page === 'account' && <TeacherPanel account={account} pending={store.pending} conflicts={store.conflicts} onSelect={s=>{setReportGrade('');account.selectStudent(s);setPage(account.teacher && s?'report':'home');}} onLogout={requestLogout} onSignedIn={role=>go(role==='teacher'?'account':'home')} syncNow={store.syncNow} refreshCloud={()=>store.pending?setConfirmRefresh(true):void refreshCloud()} exportCsv={exportResults}/>}
         {page === 'account' && account.learner && store.cloud && <LearnerHistory sessions={data.sessions} lessons={lessons} onContinue={id=>start(id)} onLessons={()=>go('lessons')}/>}
         {page === 'home' && <>
 
@@ -293,7 +299,7 @@ export default function App() {
         </>}
 
         {page === 'report' && canOpenReport && <>
-          <div className="report-learner-picker"><label htmlFor="report-student">ผู้เรียนที่ต้องการดูรายงาน</label><select id="report-student" value={account.student?.id ?? ''} onChange={event=>account.selectStudent(account.students.find(s=>s.id===event.target.value) ?? null)}><option value="">เลือกผู้เรียน</option>{account.students.map(s=><option key={s.id} value={s.id}>{s.display_name} · {s.code}{s.class_name ? ` · ${s.class_name}` : ''}</option>)}</select></div>
+          <ReportStudentPicker students={account.students} selected={account.student} grade={reportGrade} onGrade={setReportGrade} onSelect={account.selectStudent}/>
           {!canReport && <><div className="page-heading"><div><h1 tabIndex={-1}>รายงานผู้เรียน</h1><p>เลือกผู้เรียนเพื่อดูความก้าวหน้าและผลการฝึก</p></div></div><section className="empty-state"><Icon name="chart" size={48}/><h2>{account.students.length ? 'เลือกผู้เรียนที่ต้องการดูรายงาน' : 'ยังไม่มีผู้เรียนในความดูแล'}</h2><p>{account.students.length ? 'เลือกรายชื่อด้านบน แล้วรายงานของคนนั้นจะแสดงที่นี่' : 'เพิ่มผู้เรียนก่อน เมื่อเริ่มฝึก ผลจะปรากฏในหน้านี้'}</p>{!account.students.length && <button className="primary" onClick={()=>go('account')}>เพิ่มผู้เรียน<Icon name="arrow"/></button>}</section></>}
         </>}
         {page === 'report' && canReport && <>
