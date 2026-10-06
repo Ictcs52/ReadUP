@@ -1,0 +1,47 @@
+{
+  "levels": [
+    {"id":1,"title":"พยัญชนะมหาสนุก","subtitle":"รู้จักรูปและเสียงตัวอักษร","icon":"letters","lessons":["รู้จักพยัญชนะชุดแรก","ฟังแล้วเลือก","จับคู่รูปเหมือน","แยกตัวที่คล้ายกัน","ภาพกับพยัญชนะต้น"]},
+    {"id":2,"title":"จับคู่เสียงมหัศจรรย์","subtitle":"พยัญชนะกับสระ","icon":"sound","lessons":["รู้จักสระชุดแรก","พยัญชนะกับสระ","ฟังแล้วเลือกพยางค์","เปลี่ยนสระเปลี่ยนเสียง","คำไม่มีตัวสะกด"]},
+    {"id":3,"title":"นักต่อคำ","subtitle":"สร้างคำไปทีละส่วน","icon":"puzzle","lessons":["ประสมคำง่าย","เติมส่วนที่หาย","เรียงรูปคำ","เริ่มรู้จักตัวสะกด","ทบทวนการสร้างคำ"]},
+    {"id":4,"title":"ภารกิจนักอ่าน","subtitle":"อ่านคำใกล้ตัว","icon":"book","lessons":["คำของฉัน","สัตว์รอบตัว","ของใช้ใกล้ตัว","อาหารและครอบครัว","คำที่อยากฝึกอีกครั้ง"]},
+    {"id":5,"title":"อ่านประโยคแสนสนุก","subtitle":"อ่านประโยคสั้น ๆ","icon":"leaf","lessons":["ประโยคจากภาพ","เรียงคำเป็นประโยค","เติมคำ","อ่านทีละช่วง","อ่านประโยคด้วยตนเอง"]},
+    {"id":6,"title":"อ่านแล้วเข้าใจ","subtitle":"ค้นหาความหมายจากเรื่องราว","icon":"star","lessons":["ใครทำอะไร","อ่านแล้วเลือกภาพ","ตอบคำถามสั้น","เรียงเหตุการณ์","เรื่องสั้นของฉัน"]}
+  ],
+  "lessons": [
+    {"id":1,"title":"รู้จักพยัญชนะชุดแรก","description":"ดูรูป ฟังเสียง แล้วรู้จักตัวอักษร","mode":"look","questions":[
+      {"letter":"ก","word":"ไก่","speech":"กอ ไก่","art":"chicken","options":["ก","ม","ป"]},
+      {"letter":"ม","word":"ม้า","speech":"มอ ม้า","art":"horse","options":["ม","ก","ร"]},
+      {"letter":"ป","word":"ปลา","speech":"ปอ ปลา","art":"fish","options":["ป","ม","บ"]},
+      {"letter":"ร","word":"เรือ","speech":"รอ เรือ","art":"boat","options":["ร","ก","ป"]},
+      {"letter":"บ","word":"ใบไม้","speech":"บอ ใบไม้","art":"leaf","options":["บ","ร","ม"]}
+    ]},
+    {"id":2,"title":"ฟังแล้วเลือก","description":"ฟังชื่อตัวอักษร แล้วเลือกให้ตรงกัน","mode":"listen","questions":[
+      {"letter":"ป","word":"ปลา","speech":"ปอ ปลา","art":"fish","options":["ป","ก","ม"]},
+      {"letter":"ก","word":"ไก่","speech":"กอ ไก่","art":"chicken","options":["ก","ร","บ"]},
+      {"letter":"บ","word":"ใบไม้","speech":"บอ ใบไม้","art":"leaf","options":["บ","ม","ป"]},
+      {"letter":"ม","word":"ม้า","speech":"มอ ม้า","art":"horse","options":["ม","ร","ก"]},
+      {"letter":"ร","word":"เรือ","speech":"รอ เรือ","art":"boat","options":["ร","ป","บ"]}
+    ]},
+    {"id":3,"title":"จับคู่รูปเหมือน","description":"แตะตัวอักษร แล้วแตะช่องจับคู่","mode":"match","questions":[
+      {"letter":"ม","word":"ม้า","speech":"มอ ม้า","art":"horse","options":["ม","ร","ก"]},
+      {"letter":"ร","word":"เรือ","speech":"รอ เรือ","art":"boat","options":["ร","บ","ป"]},
+      {"letter":"ก","word":"ไก่","speech":"กอ ไก่","art":"chicken","options":["ก","ม","บ"]},
+      {"letter":"ป","word":"ปลา","speech":"ปอ ปลา","art":"fish","options":["ป","ร","ก"]},
+      {"letter":"บ","word":"ใบไม้","speech":"บอ ใบไม้","art":"leaf","options":["บ","ม","ร"]}
+    ]},
+    {"id":4,"title":"แยกตัวที่คล้ายกัน","description":"ค่อย ๆ ดู แล้วเลือกตัวที่เหมือนตัวอย่าง","mode":"shape","questions":[
+      {"letter":"บ","word":"ใบไม้","speech":"บอ ใบไม้","art":"leaf","options":["บ","ป"]},
+      {"letter":"ป","word":"ปลา","speech":"ปอ ปลา","art":"fish","options":["ป","บ"]},
+      {"letter":"ก","word":"ไก่","speech":"กอ ไก่","art":"chicken","options":["ก","ถ"]},
+      {"letter":"ม","word":"ม้า","speech":"มอ ม้า","art":"horse","options":["ม","น"]},
+      {"letter":"ร","word":"เรือ","speech":"รอ เรือ","art":"boat","options":["ร","ล"]}
+    ]},
+    {"id":5,"title":"ภาพกับพยัญชนะต้น","description":"ดูภาพ ฟังคำ แล้วหาพยัญชนะต้น","mode":"initial","questions":[
+      {"letter":"ก","word":"ไก่","speech":"ไก่","art":"chicken","options":["ก","ม","ร"]},
+      {"letter":"ป","word":"ปลา","speech":"ปลา","art":"fish","options":["ป","บ","ม"]},
+      {"letter":"ม","word":"ม้า","speech":"ม้า","art":"horse","options":["ม","ก","บ"]},
+      {"letter":"ร","word":"เรือ","speech":"เรือ","art":"boat","options":["ร","ป","ก"]},
+      {"letter":"บ","word":"ใบไม้","speech":"ใบไม้","art":"leaf","options":["บ","ม","ร"]}
+    ]}
+  ]
+}

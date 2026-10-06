@@ -1,0 +1,257 @@
+import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import curriculum from './data/lessons.json';
+import { defaultData, loadData, saveData } from './storage';
+import { exportCsv, orderedOptions, percent, resultCategory, reviewItems, summarize } from './domain.mjs';
+import type { AppData, Lesson, Observation, Session } from './types';
+import { Icon } from './components/Icon';
+import { BookFriend, Illustration } from './components/Art';
+
+const lessons = curriculum.lessons as Lesson[];
+type Page = 'home' | 'lessons' | 'rewards' | 'report' | 'settings' | 'about' | 'exercise' | 'result';
+const nav = [
+  { id: 'home', text: 'หน้าหลัก', icon: 'home' },
+  { id: 'lessons', text: 'บทเรียนของฉัน', icon: 'book' },
+  { id: 'rewards', text: 'รางวัลของฉัน', icon: 'star' },
+  { id: 'report', text: 'สำหรับครู', icon: 'chart' }
+] as const;
+
+function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => { ref.current?.showModal(); return () => ref.current?.close(); }, []);
+  return <dialog ref={ref} aria-labelledby="dialog-title" onCancel={e => { e.preventDefault(); onClose(); }}>
+    <div className="dialog-top"><h2 id="dialog-title">{title}</h2><button className="icon-button" aria-label="ปิดหน้าต่าง" onClick={onClose}><Icon name="close" /></button></div>
+    {children}
+  </dialog>;
+}
+
+function speak(text: string, slow: boolean, onMessage: (message: string) => void) {
+  if (!('speechSynthesis' in window)) { onMessage('เครื่องนี้ยังเปิดเสียงไม่ได้ ใช้ปุ่มช่วยเพื่อดูตัวอย่าง หรือให้ผู้ดูแลอ่านให้ฟังได้'); return; }
+  const voice = speechSynthesis.getVoices().find(v => /^th(?:-|_)?/i.test(v.lang));
+  if (!voice) { onMessage('เครื่องนี้ไม่มีเสียงภาษาไทย ใช้ปุ่มช่วยเพื่อดูตัวอย่าง หรือให้ผู้ดูแลอ่านให้ฟังได้'); return; }
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.voice = voice; utterance.lang = 'th-TH'; utterance.rate = slow ? 0.78 : 0.95;
+  utterance.onerror = e => { if (e.error !== 'interrupted' && e.error !== 'canceled') onMessage('เปิดเสียงไม่สำเร็จ ลองกดฟังอีกครั้ง หรือใช้ปุ่มช่วยได้'); };
+  onMessage('กำลังอ่านตัวอย่าง');
+  utterance.onend = () => onMessage('ฟังอีกครั้งได้ตามต้องการ');
+  speechSynthesis.speak(utterance);
+}
+
+export default function App() {
+  const [data, setData] = useState<AppData>(structuredClone(defaultData));
+  const [loaded, setLoaded] = useState(false);
+  const [storageMessage, setStorageMessage] = useState('');
+  const [page, setPage] = useState<Page>('home');
+  const [level, setLevel] = useState(1);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [pause, setPause] = useState(false);
+  const [confirmStart, setConfirmStart] = useState<{ id: number; indices?: number[] } | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [audioMessage, setAudioMessage] = useState('');
+  const [chosen, setChosen] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState('');
+  const [selectedReport, setSelectedReport] = useState<string | null>(null);
+  const [visible, setVisible] = useState(!document.hidden);
+  const mainRef = useRef<HTMLElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
+  const current = data.sessions.find(s => s.id === sessionId);
+  const active = [...data.sessions].reverse().find(s => s.status === 'active');
+  const lesson = lessons.find(l => l.id === current?.lessonId);
+  const question = current && lesson ? lesson.questions[current.questionIndices[current.index]] : null;
+  const completed = data.sessions.filter(s => s.status === 'complete');
+  const total = summarize(data.sessions.flatMap(s => s.records));
+  const review = reviewItems(data.sessions);
+  const completedLessons = new Set(completed.map(s => s.lessonId));
+
+  useEffect(() => {
+    loadData().then(setData).catch(() => setStorageMessage('เครื่องนี้บันทึกถาวรไม่ได้ ผลจะอยู่เฉพาะช่วงที่เปิดหน้านี้ กรุณาส่งออกผลก่อนปิด')).finally(() => setLoaded(true));
+    const change = () => setVisible(!document.hidden);
+    document.addEventListener('visibilitychange', change);
+    // Load voice lists on platforms that populate them asynchronously.
+    window.speechSynthesis?.getVoices();
+    return () => { document.removeEventListener('visibilitychange', change); window.speechSynthesis?.cancel(); };
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    saveData(data).catch(() => setStorageMessage('ยังบันทึกลงเครื่องไม่ได้ กรุณาส่งออกผลก่อนปิดหน้านี้'));
+  }, [data, loaded]);
+
+  useEffect(() => {
+    setChosen(null); setFeedback(''); setAudioMessage('');
+    window.speechSynthesis?.cancel();
+    mainRef.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [page, sessionId, current?.index]);
+
+  useEffect(() => { if (current?.answered && page === 'exercise') nextRef.current?.focus({ preventScroll: true }); }, [current?.answered, page]);
+
+  useEffect(() => {
+    if (page !== 'exercise' || pause || !visible || !current || current.answered || current.status !== 'active') return;
+    let last = performance.now();
+    const timer = window.setInterval(() => {
+      const now = performance.now();
+      const elapsed = Math.min(1500, now - last); last = now;
+      setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === sessionId ? { ...s, currentMs: s.currentMs + elapsed } : s) }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [page, pause, visible, sessionId, current?.answered, current?.status]);
+
+  function go(next: Page) { setPause(false); setPage(next); }
+  function updateSession(fn: (s: Session) => Session) {
+    setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === sessionId ? fn(s) : s) }));
+  }
+  function start(id: number, indices?: number[], approved = false) {
+    if (active && active.lessonId === id && !indices && !approved) { setSessionId(active.id); go('exercise'); return; }
+    if (active && !approved) { setConfirmStart({ id, indices }); return; }
+    const target = lessons.find(l => l.id === id)!;
+    const session: Session = { id: crypto.randomUUID(), lessonId: id, startedAt: Date.now(), status: 'active', questionIndices: indices ?? target.questions.map((_, i) => i), index: 0, records: [], wrongAttempts: 0, hintLevel: 0, currentMs: 0, answered: false };
+    setData(d => ({ ...d, sessions: [...d.sessions.map(s => s.status === 'active' ? { ...s, status: 'ended' as const, endedAt: Date.now() } : s), session] }));
+    setSessionId(session.id); setConfirmStart(null); go('exercise');
+  }
+  function answer(value: string) {
+    if (!current || !question || current.answered || current.status !== 'active') return;
+    setChosen(value);
+    if (value === question.letter) {
+      setFeedback('จับคู่ได้แล้ว! ขอบคุณที่ตั้งใจนะ');
+      updateSession(s => ({ ...s, answered: true, records: [...s.records, { questionIndex: s.questionIndices[s.index], letter: question.letter, word: question.word, category: resultCategory(s.wrongAttempts, s.hintLevel), wrongAttempts: s.wrongAttempts, hintLevel: s.hintLevel, activeMs: s.currentMs }] }));
+    } else {
+      setFeedback('ค่อย ๆ ดู แล้วลองอีกครั้งนะ ใช้ปุ่มช่วยได้');
+      updateSession(s => ({ ...s, wrongAttempts: s.wrongAttempts + 1 }));
+    }
+  }
+  function skip() {
+    if (!current || !question || current.answered) return;
+    setFeedback('เก็บข้อนี้ไว้ฝึกอีกครั้งได้เสมอ');
+    updateSession(s => ({ ...s, answered: true, records: [...s.records, { questionIndex: s.questionIndices[s.index], letter: question.letter, word: question.word, category: 'skipped', wrongAttempts: s.wrongAttempts, hintLevel: s.hintLevel, activeMs: s.currentMs }] }));
+  }
+  function next() {
+    if (!current || !current.answered) return;
+    if (current.index + 1 === current.questionIndices.length) {
+      updateSession(s => ({ ...s, status: 'complete', endedAt: Date.now() }));
+      go('result');
+    } else updateSession(s => ({ ...s, index: s.index + 1, wrongAttempts: 0, hintLevel: 0, currentMs: 0, answered: false }));
+  }
+  function help() {
+    if (!current || !question || current.answered) return;
+    const hint = Math.min(3, current.hintLevel + 1);
+    updateSession(s => ({ ...s, hintLevel: hint }));
+    if (hint === 2 && data.settings.sound) speak(question.speech, data.settings.slow, setAudioMessage);
+  }
+  function exportResults() {
+    const blob = new Blob([exportCsv(data.sessions, lessons)], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ReadTech-results.csv';
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  function observe(id: string, field: keyof Observation, value: string) {
+    setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === id ? { ...s, observation: { attention: 'ยังไม่ได้สังเกต', reading: 'ยังไม่ได้ประเมิน', note: '', ...s.observation, [field]: value } } : s) }));
+  }
+
+  if (!loaded) return <div className="loading"><BookFriend /><p>กำลังเตรียมพื้นที่ฝึกอ่าน…</p></div>;
+
+  function lessonCard(l: Lesson) {
+    const done = completedLessons.has(l.id);
+    const inProgress = active?.lessonId === l.id;
+    return <article className="lesson-card" key={l.id}>
+      <div className={'lesson-symbol tone-' + l.id}><Icon name={['letters','sound','puzzle','leaf','book'][l.id - 1]} size={28} /></div>
+      <div className="lesson-card-copy"><span className="eyebrow">บทที่ {l.id} · 5 กิจกรรม</span><h3>{l.title}</h3><p>{l.description}</p></div>
+      <button className={'lesson-action ' + (done ? 'done' : '')} onClick={() => start(l.id)} aria-label={`${inProgress ? 'ฝึกต่อ' : done ? 'ฝึกอีกครั้ง' : 'เริ่มฝึก'} ${l.title}`}><span>{inProgress ? 'ฝึกต่อ' : done ? 'ฝึกอีกครั้ง' : 'เริ่มฝึก'}</span><Icon name={done ? 'replay' : 'arrow'} /></button>
+    </article>;
+  }
+
+  return <div className={`app ${data.settings.largeText ? 'large-text' : ''} ${data.settings.calm ? 'calm' : ''}`}>
+    <a className="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
+    {page !== 'exercise' && <aside className="sidebar">
+      <button className="brand" onClick={() => go('home')} aria-label="ReadTech Companion หน้าหลัก"><span className="brand-mark"><Icon name="book" size={27} /></span><span>ReadTech<small>COMPANION</small></span></button>
+      <div className="sidebar-line" />
+      <p className="nav-label">พื้นที่ของฉัน</p>
+      <nav aria-label="เมนูหลัก">{nav.map(n => <button key={n.id} className={'nav-item ' + (page === n.id ? 'active' : '')} aria-current={page === n.id ? 'page' : undefined} onClick={() => go(n.id)}><Icon name={n.icon} /><span>{n.text}</span>{page === n.id && <i />}</button>)}</nav>
+      <div className="sidebar-bottom"><div className="gentle-note"><Icon name="heart" /><p>ไม่ต้องรีบก็ได้<br/><strong>เติบโตในจังหวะของเรา</strong></p></div><button className="nav-item" onClick={() => go('settings')}><Icon name="settings" />ปรับการใช้งาน</button><button className="about-link" onClick={() => go('about')}>เกี่ยวกับนวัตกรรม · รุ่นทดลอง 0.1</button></div>
+    </aside>}
+
+    <div className={'workspace ' + (page === 'exercise' ? 'focused' : '')}>
+      <header className="topbar">
+        <div className="topbar-title">{page === 'exercise' ? <button className="text-button" onClick={() => setPause(true)}><Icon name="back" />พัก / กลับหน้าหลัก</button> : <><span className="mobile-brand">ReadTech</span><span className="desktop-kicker">ฝึกทีละคำ พัฒนาไปทีละขั้น</span></>}</div>
+        <div className="topbar-right"><span className="local-badge"><Icon name="shield" size={16}/>ข้อมูลอยู่ในเครื่องนี้</span><button className="settings-button" aria-label="ปรับการใช้งาน" onClick={() => page === 'exercise' ? setPause(true) : go('settings')}><Icon name={page === 'exercise' ? 'pause' : 'settings'} /></button><span className="avatar" aria-hidden="true">ร</span></div>
+      </header>
+      {storageMessage && <div className="storage-warning" role="alert"><Icon name="info" /><span>{storageMessage}</span><button className="text-button" onClick={exportResults}>ส่งออกผล</button></div>}
+      <main id="main" ref={mainRef}>
+        {page === 'home' && <>
+          <div className="page-heading"><div><span className="eyebrow pink">เพื่อนฝึกอ่านของเธอ</span><h1 tabIndex={-1}>สวัสดี นักอ่านคนเก่ง <span className="hello-spark" aria-hidden="true">✦</span></h1><p>วันนี้มาค่อย ๆ เรียนรู้ไปด้วยกันนะ</p></div><span className="pill"><span className="status-dot"/>พร้อมเริ่มต้นเสมอ</span></div>
+          <section className="hero" aria-labelledby="hero-title">
+            <div className="hero-copy"><span className="hero-tag"><Icon name="leaf" size={16}/>ทุกก้าวเล็ก ๆ มีความหมาย</span><h2 id="hero-title">อ่านทีละคำ<br/><span>มั่นใจทีละนิด</span></h2><p>ดูภาพ ฟังเสียง แล้วลองด้วยตัวเอง<br/>ไม่ต้องรีบ เราฝึกซ้ำได้เสมอ</p><button className="primary" onClick={() => start(active?.lessonId ?? lessons.find(l => !completedLessons.has(l.id))?.id ?? 1)}><Icon name={active ? 'replay' : 'book'} />{active ? 'ฝึกต่อจากครั้งก่อน' : 'เริ่มฝึกวันนี้'}<Icon name="arrow" /></button><span className="hero-meta"><Icon name="clock" size={16}/>ครั้งละประมาณ 5–10 นาที · พักได้ทุกเมื่อ</span></div>
+            <div className="hero-art"><span className="art-orbit"/><BookFriend className="hero-friend"/><span className="friend-caption">ฉันจะอยู่ข้าง ๆ เธอนะ</span></div>
+          </section>
+          <section className="stats-grid" aria-label="ความก้าวหน้าในเครื่องนี้">
+            <div className="stat"><span className="stat-icon pink-bg"><Icon name="book" /></span><div><span className="stat-number">{completedLessons.size}<small> / 5 บท</small></span><span className="stat-label">กิจกรรมที่ทำครบ</span></div></div>
+            <div className="stat"><span className="stat-icon gold-bg"><Icon name="star" /></span><div><span className="stat-number">{total.independent + total.retried + total.assisted}<small> ดวง</small></span><span className="stat-label">ดาวจากการทำกิจกรรม</span></div></div>
+            <div className="stat"><span className="stat-icon green-bg"><Icon name="leaf" /></span><div><span className="stat-number">{completed.length}<small> ครั้ง</small></span><span className="stat-label">ฝึกครบหนึ่งช่วง</span></div></div>
+          </section>
+          <div className="home-columns"><section className="lesson-section"><div className="section-title"><div><span className="eyebrow">LEVEL 1</span><h2>พยัญชนะมหาสนุก</h2></div><button className="text-button" onClick={() => go('lessons')}>ดูบทเรียนทั้งหมด<Icon name="arrow" size={18}/></button></div><div className="lesson-list">{lessons.slice(0,3).map(lessonCard)}</div></section>
+            <aside className="review-card"><span className="small-label"><Icon name="replay" size={18}/>ฝึกซ้ำได้เสมอ</span><h2>อีกนิดก็คล่องขึ้น</h2><p>{review.length ? 'กลับมาลองกิจกรรมที่เคยใช้ตัวช่วย หรืออยากฝึกอีกครั้ง' : 'ยังไม่มีข้อที่ต้องทบทวน ลองเริ่มบทเรียนแรกกันนะ'}</p><div className="review-letters">{(review.length ? review.slice(0,3).map(r=>r.letter) : ['ก','ม','ป']).map((letter,i)=><span key={i}>{letter}</span>)}</div><button className="secondary" onClick={() => review.length ? start(review[0].lessonId, review.filter(r=>r.lessonId===review[0].lessonId).map(r=>r.questionIndex)) : start(1)}>{review.length ? 'ลองกิจกรรมเดิมอีกครั้ง' : 'รู้จักตัวอักษรกัน'}<Icon name="arrow" size={18}/></button><div className="small-divider"/><p className="gentle-tip"><Icon name="help" size={19}/>ใช้ปุ่มช่วยได้ ไม่เสียดาว</p></aside>
+          </div>
+        </>}
+
+        {page === 'lessons' && <>
+          <div className="page-heading"><div><span className="eyebrow pink">เรียนรู้ในจังหวะของเรา</span><h1 tabIndex={-1}>บทเรียนของฉัน</h1><p>เลือกบทที่อยากฝึก หรือกลับมาทบทวนได้เสมอ</p></div></div>
+          <div className="level-tabs" role="tablist" aria-label="ระดับบทเรียน">{curriculum.levels.map(l=><button role="tab" aria-selected={level===l.id} aria-controls="level-panel" id={`level-tab-${l.id}`} key={l.id} onClick={()=>setLevel(l.id)} className={level===l.id?'selected':''}>LEVEL {l.id}<span>{l.id===1?'พร้อมฝึก':'แผนบทเรียน'}</span></button>)}</div>
+          <section className="level-panel" id="level-panel" role="tabpanel" aria-labelledby={`level-tab-${level}`}><div className="section-title"><div><span className="eyebrow">LEVEL {level}</span><h2>{curriculum.levels[level-1].title}</h2><p>{curriculum.levels[level-1].subtitle}</p></div><span className="pill">{level===1?'5 บทเรียนพร้อมทดลอง':'กำลังเตรียมเนื้อหา'}</span></div>{level===1 ? <div className="lesson-list">{lessons.map(lessonCard)}</div> : <><p className="notice">ระดับนี้เป็นแผนการพัฒนา ยังไม่มีแบบฝึกให้ใช้งาน และยังไม่ใช่บทเรียนที่ผ่านการตรวจเนื้อหา</p>{curriculum.levels[level-1].lessons.map((title,i)=><div key={title} className="planned-lesson"><span className="planned-number">{(level-1)*5+i+1}</span><div><h3>{title}</h3><p>อยู่ระหว่างเตรียมกิจกรรม</p></div><Icon name="clock"/></div>)}</>}</section>
+        </>}
+
+        {page === 'exercise' && current && lesson && question && <div className="exercise-wrap">
+          <div className="exercise-heading"><div><span className="eyebrow pink">บทที่ {lesson.id} · พยัญชนะมหาสนุก</span><h1 tabIndex={-1}>{lesson.title}</h1></div><span className="pill">ข้อ {current.index+1} จาก {current.questionIndices.length}</span></div>
+          <div className="progress-track" role="progressbar" aria-label="กิจกรรมที่ทำแล้ว" aria-valuemin={0} aria-valuemax={current.questionIndices.length} aria-valuenow={current.index + Number(current.answered)}><span style={{width: `${(current.index + Number(current.answered))/current.questionIndices.length*100}%`}}/></div>
+          <section className="exercise-card">
+            <h2 className="instruction">{lesson.mode === 'listen' ? 'ฟัง แล้วแตะตัวอักษร' : lesson.mode === 'initial' ? 'ภาพนี้ขึ้นต้นด้วยตัวอะไร?' : lesson.mode === 'match' ? 'แตะตัวอักษร แล้วแตะช่องจับคู่' : 'เลือกตัวอักษรที่เหมือนตัวอย่าง'}</h2>
+            <div className={'question-visual ' + (lesson.mode==='shape'?'shape-only':'')}>
+              {lesson.mode==='listen' && current.hintLevel===0 ? <div className="listen-orb"><Icon name="sound" size={70}/><span>พร้อมแล้ว กดฟังเลย</span></div> : <>
+                {lesson.mode !== 'shape' && <Illustration kind={question.art} label={question.word} className="question-art"/>}
+                {lesson.mode !== 'initial' && lesson.mode !== 'listen' && <div className="target-letter" aria-label={`ตัวอย่าง ${question.letter}`}>{question.letter}</div>}
+              </>}
+            </div>
+            <div className="audio-area"><button className="audio-button" disabled={!data.settings.sound} onClick={()=>speak(question.speech,data.settings.slow,setAudioMessage)}><Icon name="sound"/>{lesson.mode==='initial'?'ฟังชื่อภาพ':'ฟังตัวอย่าง'}</button><span className="audio-status" role="status">{!data.settings.sound?'ปิดเสียงอยู่ เปิดได้ในหน้าปรับการใช้งาน':audioMessage || 'ฟังซ้ำได้ตามต้องการ'}</span></div>
+            {current.hintLevel>0 && <div className="hint-box" role="status"><span className="hint-title"><Icon name="help" size={18}/>ตัวช่วย {current.hintLevel}/3</span><p>{current.hintLevel===1 ? `ภาพนี้คือ ${question.word} ค่อย ๆ ดูรูปตัวอักษรนะ` : current.hintLevel===2 ? `ฟังอีกครั้ง: ${question.speech}` : <>ดูตัวอย่าง: <strong className="hint-letter">{question.letter}</strong> — {question.speech} แล้วลองเลือกด้วยตัวเอง</>}</p></div>}
+            <div className={'options ' + (question.options.length===2?'two-options':'')} aria-label="ตัวเลือก">{orderedOptions(question.options, current.id+':'+current.index).map((value:string)=><button className={'letter-option ' + (chosen===value?'picked ':'') + (current.answered && chosen===value?'correct ':'')} key={value} disabled={current.answered} aria-pressed={chosen===value} aria-label={`เลือก ${value}`} onClick={()=>lesson.mode==='match'?setChosen(value):answer(value)}>{value}</button>)}</div>
+            {lesson.mode==='match' && <button className={'match-slot ' + (current.answered?'matched':'')} disabled={!chosen || current.answered} onClick={()=>chosen && answer(chosen)} aria-label="วางตัวอักษรที่เลือกลงช่องจับคู่">{chosen ?? <Icon name="puzzle"/>}<span>{current.answered?'จับคู่แล้ว':'แตะที่นี่เพื่อจับคู่'}</span></button>}
+            <div className={'feedback ' + (current.answered?'success':'')} role="status" aria-live="polite">{current.answered && <Icon name={current.records.at(-1)?.category==='skipped'?'leaf':'check'}/>}<span>{feedback || (current.answered ? current.records.at(-1)?.category==='skipped'?'เก็บข้อนี้ไว้ฝึกอีกครั้ง':'ทำกิจกรรมข้อนี้แล้ว ไปต่อได้เลย' : 'ลองด้วยตัวเอง หรือใช้ปุ่มช่วยได้')}</span></div>
+            <div className="exercise-actions">{current.answered ? <button ref={nextRef} className="primary next-button" onClick={next}>{current.index+1===current.questionIndices.length?'ดูรางวัลของฉัน':'ข้อต่อไป'}<Icon name="arrow"/></button> : <><button className="secondary" onClick={help}><Icon name="help"/>{current.hintLevel===3?'ดูตัวอย่างอีกครั้ง':'ช่วยทีละนิด'}</button><button className="text-button" onClick={skip}>ฝึกข้อนี้ภายหลัง</button></>}</div>
+          </section>
+          <p className="exercise-footer"><Icon name="heart" size={17}/>ไม่มีการจับเวลาแข่งขัน · พักได้ทุกเมื่อ</p>
+        </div>}
+
+        {page === 'result' && current && lesson && <section className="result-card"><div className="reward-medal"><Icon name="star" size={54}/></div><span className="eyebrow pink">ขอบคุณที่ตั้งใจฝึก</span><h1 tabIndex={-1}>ทำกิจกรรมครบแล้ว!</h1><p>{lesson.title}</p><div className="result-stars" aria-hidden="true">✦ ✦ ✦</div><div className="result-summary"><strong>{current.records.filter(r=>r.category!=='skipped').length} ดาว</strong><span>จากกิจกรรมที่ทำได้ในรอบนี้</span></div><p>ทุกครั้งที่ลอง คือก้าวเล็ก ๆ ที่สำคัญ<br/>อยากพัก หรือกลับมาฝึกอีกครั้งก็ได้</p><div className="result-actions"><button className="primary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button><button className="secondary" onClick={()=>start(lesson.id)}>ฝึกอีกครั้ง<Icon name="replay"/></button></div><p className="fine-print">ดาวแสดงการทำกิจกรรม ไม่ใช่ผลประเมินการอ่านออกเสียง</p></section>}
+
+        {page === 'rewards' && <>
+          <div className="page-heading"><div><span className="eyebrow pink">เก็บความภูมิใจไว้ด้วยกัน</span><h1 tabIndex={-1}>รางวัลของฉัน</h1><p>ไม่มีการหักดาว และไม่ต้องแข่งกับใคร</p></div></div>
+          <section className="reward-banner"><BookFriend/><div><h2>ความพยายามของเธอมีค่าเสมอ</h2><p>ฝึกไปแล้ว {completed.length} ช่วง · เก็บดาวได้ {total.independent+total.retried+total.assisted} ดวง</p></div></section>
+          <div className="badge-grid">{[{name:'ก้าวแรกของฉัน',icon:'leaf',got:data.sessions.length>0,detail:'เริ่มกิจกรรมครั้งแรก'},{name:'ตั้งใจจนจบ',icon:'book',got:completed.length>0,detail:'ทำครบหนึ่งช่วงฝึก'},{name:'นักฝึกตัวอักษร',icon:'letters',got:completedLessons.size>=3,detail:'ทำครบ 3 บทเรียน'},{name:'กลับมาลองอีกครั้ง',icon:'replay',got:completed.some(s=>completed.filter(t=>t.lessonId===s.lessonId).length>=2),detail:'ฝึกบทเดิมครบมากกว่า 1 รอบ'}].map(b=><article className={'badge-card '+(!b.got?'not-yet':'')} key={b.name}><span className="badge-symbol"><Icon name={b.icon} size={38}/></span><h2>{b.name}</h2><p>{b.detail}</p><span className="badge-state">{b.got?'ได้รับแล้ว':'ค่อย ๆ สะสมได้'}</span></article>)}</div>
+        </>}
+
+        {page === 'report' && <>
+          <div className="page-heading"><div><span className="eyebrow pink">ติดตามกิจกรรม ไม่ตัดสินผู้เรียน</span><h1 tabIndex={-1}>พื้นที่สำหรับครู</h1><p>ผลของผู้เรียนคนเดียวที่ฝึกบนเครื่องนี้</p></div><button className="secondary" disabled={!data.sessions.some(s=>s.records.length)} onClick={exportResults}><Icon name="download"/>ส่งออก CSV</button></div>
+          <div className="notice"><Icon name="shield"/><div><strong>รุ่นทดลอง · ไม่มีบัญชีครูหรือฐานข้อมูลกลาง</strong><p>ผลอยู่ในเบราว์เซอร์นี้เท่านั้น ผู้ใช้เครื่องนี้เปิดดูได้ ไม่ควรใช้เครื่องเดียวสลับเด็กหลายคนโดยไม่ส่งออกและล้างผลก่อน คะแนนกิจกรรมไม่ยืนยันว่าอ่านออกเสียงได้</p></div></div>
+          <div className="report-stats">{[{label:'ทำได้เองครั้งแรก',value:total.independent},{label:'ทำได้หลังลองใหม่',value:total.retried},{label:'ทำได้หลังช่วย',value:total.assisted},{label:'เก็บไว้ฝึกภายหลัง',value:total.skipped}].map(x=><div className="report-stat" key={x.label}><strong>{x.value}<small> ข้อ</small></strong><span>{x.label}</span></div>)}</div>
+          <p className="fine-print">จากกิจกรรมที่บันทึก {total.total} ข้อ · ทำได้เองครั้งแรก {percent(total.independent,total.total)}% · ไม่รวมข้อที่ยังไม่ได้ทำในรอบที่ค้างอยู่</p>
+          {!data.sessions.length ? <section className="empty-state"><Icon name="chart" size={48}/><h2>ยังไม่มีผลการฝึก</h2><p>เมื่อทำกิจกรรม ผลจะปรากฏที่นี่</p><button className="primary" onClick={()=>start(1)}>ทดลองบทเรียนแรก<Icon name="arrow"/></button></section> : <>
+            <div className="report-table-wrap"><table><caption>รอบการฝึกในเครื่องนี้</caption><thead><tr><th>บทเรียน / วันที่</th><th>ทำแล้ว</th><th>เองครั้งแรก</th><th>หลังลองใหม่</th><th>หลังช่วย</th><th>สถานะ</th><th>รายละเอียด</th></tr></thead><tbody>{[...data.sessions].reverse().map(s=>{const counts=summarize(s.records);return <tr key={s.id}><td><strong>{lessons.find(l=>l.id===s.lessonId)?.title}</strong><small>{new Date(s.startedAt).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'})}</small></td><td>{s.records.length}/{s.questionIndices.length}</td><td>{counts.independent}</td><td>{counts.retried}</td><td>{counts.assisted}</td><td><span className="table-pill">{s.status==='complete'?'ครบกิจกรรม':s.status==='active'?'ฝึกต่อได้':'จบรอบก่อนครบ'}</span></td><td><button className="text-button" onClick={()=>setSelectedReport(selectedReport===s.id?null:s.id)} aria-expanded={selectedReport===s.id}>ดูผล<Icon name="arrow" size={16}/></button></td></tr>})}</tbody></table></div>
+            {selectedReport && (()=>{const s=data.sessions.find(x=>x.id===selectedReport)!; return <section className="report-detail"><h2>รายละเอียด: {lessons.find(l=>l.id===s.lessonId)?.title}</h2><p className="fine-print">เวลาที่ทำกิจกรรมประมาณ {Math.round(s.records.reduce((a,r)=>a+r.activeMs,0)/1000)} วินาที ไม่รวมช่วงพักและซ่อนหน้าเว็บ</p><div className="word-results">{s.records.map((r,i)=><div key={i}><strong>{r.letter} · {r.word}</strong><span>{{independent:'ทำได้เองครั้งแรก',retried:'ทำได้หลังลองใหม่',assisted:'ทำได้หลังช่วย',skipped:'เก็บไว้ฝึกภายหลัง'}[r.category]}</span><small>ตัวช่วย {r.hintLevel}/3 · ลองไม่ตรง {r.wrongAttempts} ครั้ง</small></div>)}</div><h3>บันทึกจากการสังเกตของครู</h3><div className="observation-grid"><label>ระดับสมาธิ<select value={s.observation?.attention??'ยังไม่ได้สังเกต'} onChange={e=>observe(s.id,'attention',e.target.value)}>{['ยังไม่ได้สังเกต','จดจ่อได้ด้วยตนเอง','ต้องเตือนเป็นบางครั้ง','ต้องช่วยกำกับต่อเนื่อง'].map(x=><option key={x}>{x}</option>)}</select></label><label>การอ่านออกเสียง (ประเมินแยกจากเกม)<select value={s.observation?.reading??'ยังไม่ได้ประเมิน'} onChange={e=>observe(s.id,'reading',e.target.value)}>{['ยังไม่ได้ประเมิน','อ่านตัวอย่างที่ครูกำหนดได้เอง','อ่านตัวอย่างได้หลังช่วย','ควรฝึกการอ่านเพิ่มเติม'].map(x=><option key={x}>{x}</option>)}</select></label></div><label className="note-label">ข้อสังเกต (ไม่ใส่ชื่อจริงหรือข้อมูลสุขภาพ)<textarea maxLength={500} value={s.observation?.note??''} onChange={e=>observe(s.id,'note',e.target.value)} placeholder="ระบุคำที่ครูให้ลองอ่าน และสิ่งที่สังเกตได้"/></label></section>})()}
+          </>}
+        </>}
+
+        {page === 'settings' && <>
+          <div className="page-heading"><div><span className="eyebrow pink">ปรับให้สบายสำหรับเรา</span><h1 tabIndex={-1}>ปรับการใช้งาน</h1><p>ผู้ดูแลช่วยเลือกการตั้งค่าที่เหมาะกับผู้เรียนได้</p></div></div>
+          <section className="settings-panel">{[{key:'largeText',title:'ตัวหนังสือใหญ่ขึ้น',detail:'ขยายคำสั่งและข้อความประกอบ'},{key:'sound',title:'เปิดปุ่มเสียงตัวอย่าง',detail:'ใช้เสียงสังเคราะห์ภาษาไทยของอุปกรณ์ ไม่มีการบันทึกไมโครโฟน'},{key:'slow',title:'เสียงอ่านช้าลง',detail:'ปรับความเร็วเสียงสังเคราะห์ให้นุ่มนวลขึ้น'},{key:'calm',title:'โหมดสงบ',detail:'ลดการเคลื่อนไหวและเอฟเฟกต์ตกแต่ง'}].map(x=><label key={x.key} className="setting-row"><span><strong>{x.title}</strong><small>{x.detail}</small></span><input type="checkbox" checked={data.settings[x.key as keyof typeof data.settings]} onChange={e=>setData(d=>({...d,settings:{...d.settings,[x.key]:e.target.checked}}))}/></label>)}</section>
+          <section className="settings-panel"><h2>ข้อมูลในเครื่องนี้</h2><p>ข้อมูลไม่ส่งไป GitHub หรือเซิร์ฟเวอร์ และอาจหายเมื่อคุณล้างข้อมูลเบราว์เซอร์ กรุณาส่งออกผลก่อนเปลี่ยนเครื่องหรือเปลี่ยนผู้เรียน</p><div className="setting-actions"><button className="secondary" onClick={exportResults}><Icon name="download"/>ส่งออกผล</button><button className="text-button danger" onClick={()=>setConfirmReset(true)}>ล้างผลเพื่อเปลี่ยนผู้เรียน</button></div></section>
+        </>}
+
+        {page === 'about' && <section className="about-panel"><span className="eyebrow pink">READTECH COMPANION · 0.1.0</span><h1 tabIndex={-1}>เพื่อนร่วมทางการฝึกอ่าน</h1><p className="about-full-title">ReadTech Companion นวัตกรรมแอปพลิเคชันช่วยฝึกอ่านและประมวลผลคำสำหรับเด็กที่มีความบกพร่องทางการเรียนรู้</p><BookFriend/><h2>สั้น · ง่าย · ซ้ำ · สนุก · เห็นผล</h2><p>ฝึกทีละคำ พัฒนาไปทีละขั้น อ่านได้อย่างมั่นใจ</p><div className="notice"><div><strong>ขอบเขตรุ่นทดลอง</strong><p>พร้อมทดลอง 5 บทเรียนระดับพยัญชนะ อีก 25 บทเป็นแผนพัฒนา ยังไม่มี Pre-test/Post-test การประเมินเสียงอัตโนมัติ การบันทึกเสียง บัญชีผู้ใช้ หรือการซิงก์ข้ามเครื่อง</p><p>ใช้เสียงสังเคราะห์จากอุปกรณ์ ไม่ใช่ชุดเสียงที่ครูตรวจรับแล้ว ครูควรตรวจภาพ คำ และเสียงบนเครื่องจริงก่อนใช้กับเด็ก เครื่องที่ไม่มีเสียงไทยใช้ปุ่มช่วยและผู้ดูแลอ่านให้ฟังแทนได้</p><p>ยังไม่ใช่เครื่องมือวินิจฉัยหรือระบบที่รับรองผลการเรียนรู้ ต้องทดลองและปรับตามผู้เรียนแต่ละคน</p></div></div><button className="primary" onClick={()=>go('home')}>กลับหน้าหลัก<Icon name="arrow"/></button></section>}
+      </main>
+      {page!=='exercise' && <footer className="app-footer"><span><Icon name="heart" size={14}/>เรียนรู้ด้วยความเข้าใจ ในจังหวะของตัวเอง</span><button onClick={()=>go('about')}>ReadTech Companion · รุ่นทดลอง</button></footer>}
+    </div>
+    {page!=='exercise' && <nav className="mobile-nav" aria-label="เมนูหลักบนมือถือ">{nav.map(n=><button key={n.id} className={page===n.id?'active':''} aria-current={page===n.id?'page':undefined} onClick={()=>go(n.id)}><Icon name={n.icon}/><span>{n.text}</span></button>)}</nav>}
+    {pause && <Modal title="พักสักนิดก็ได้" onClose={()=>setPause(false)}><BookFriend className="pause-friend"/><p>เก็บกิจกรรมที่ทำไว้แล้ว<br/>กลับมาฝึกต่อจากเดิมได้เสมอ</p><div className="dialog-actions"><button className="primary" onClick={()=>setPause(false)}>ฝึกต่อ<Icon name="arrow"/></button><button className="secondary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button></div></Modal>}
+    {confirmStart && <Modal title="เริ่มรอบใหม่ไหม?" onClose={()=>setConfirmStart(null)}><p>ผลที่ทำในรอบเดิมยังอยู่ในรายงาน แต่รอบเดิมจะจบก่อนครบ และจะเริ่มบทที่เลือกจากข้อแรก</p><div className="dialog-actions"><button className="primary" onClick={()=>start(confirmStart.id,confirmStart.indices,true)}>เริ่มรอบใหม่</button><button className="secondary" onClick={()=>setConfirmStart(null)}>ยังไม่เริ่ม</button></div></Modal>}
+    {confirmReset && <Modal title="ล้างผลในเครื่องนี้?" onClose={()=>setConfirmReset(false)}><p>ผลการฝึก รางวัล และข้อสังเกตของครูจะถูกล้าง กู้คืนในแอปไม่ได้ กรุณาส่งออก CSV ก่อนล้างผล</p><div className="dialog-actions"><button className="secondary" onClick={exportResults}><Icon name="download"/>ส่งออกก่อน</button><button className="primary" onClick={()=>{setData(d=>({...d,sessions:[]}));setSessionId(null);setSelectedReport(null);setConfirmReset(false);go('home');}}>ยืนยันล้างผล</button><button className="text-button" onClick={()=>setConfirmReset(false)}>ยกเลิก</button></div></Modal>}
+  </div>;
+}
