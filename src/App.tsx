@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import curriculum from './data/lessons.json';
 import { defaultData, loadData, saveData } from './storage';
 import { exportCsv, orderedOptions, percent, resultCategory, reviewItems, summarize } from './domain.mjs';
 import type { AppData, Lesson, Observation, Session } from './types';
 import { Icon } from './components/Icon';
 import { BookFriend, Illustration } from './components/Art';
+import { AnswerStars } from './components/AnswerStars';
+import { disposeFeedbackSound, playFeedbackSound, stopFeedbackSound } from './feedbackAudio';
 
 const lessons = curriculum.lessons as Lesson[];
 type Page = 'home' | 'lessons' | 'rewards' | 'report' | 'settings' | 'about' | 'exercise' | 'result';
@@ -26,6 +28,7 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
 }
 
 function speak(text: string, slow: boolean, onMessage: (message: string) => void) {
+  stopFeedbackSound();
   if (!('speechSynthesis' in window)) { onMessage('เครื่องนี้ยังเปิดเสียงไม่ได้ ใช้ปุ่มช่วยเพื่อดูตัวอย่าง หรือให้ผู้ดูแลอ่านให้ฟังได้'); return; }
   const voice = speechSynthesis.getVoices().find(v => /^th(?:-|_)?/i.test(v.lang));
   if (!voice) { onMessage('เครื่องนี้ไม่มีเสียงภาษาไทย ใช้ปุ่มช่วยเพื่อดูตัวอย่าง หรือให้ผู้ดูแลอ่านให้ฟังได้'); return; }
@@ -51,6 +54,7 @@ export default function App() {
   const [audioMessage, setAudioMessage] = useState('');
   const [chosen, setChosen] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [celebrating, setCelebrating] = useState(false);
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [visible, setVisible] = useState(!document.hidden);
   const mainRef = useRef<HTMLElement>(null);
@@ -66,11 +70,11 @@ export default function App() {
 
   useEffect(() => {
     loadData().then(setData).catch(() => setStorageMessage('เครื่องนี้บันทึกถาวรไม่ได้ ผลจะอยู่เฉพาะช่วงที่เปิดหน้านี้ กรุณาส่งออกผลก่อนปิด')).finally(() => setLoaded(true));
-    const change = () => setVisible(!document.hidden);
+    const change = () => { setVisible(!document.hidden); if (document.hidden) stopFeedbackSound(); };
     document.addEventListener('visibilitychange', change);
     // Load voice lists on platforms that populate them asynchronously.
     window.speechSynthesis?.getVoices();
-    return () => { document.removeEventListener('visibilitychange', change); window.speechSynthesis?.cancel(); };
+    return () => { document.removeEventListener('visibilitychange', change); window.speechSynthesis?.cancel(); disposeFeedbackSound(); };
   }, []);
 
   useEffect(() => {
@@ -79,13 +83,24 @@ export default function App() {
   }, [data, loaded]);
 
   useEffect(() => {
-    setChosen(null); setFeedback(''); setAudioMessage('');
+    setChosen(null); setFeedback(''); setAudioMessage(''); setCelebrating(false);
     window.speechSynthesis?.cancel();
     mainRef.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [page, sessionId, current?.index]);
 
   useEffect(() => { if (current?.answered && page === 'exercise') nextRef.current?.focus({ preventScroll: true }); }, [current?.answered, page]);
+
+  useEffect(() => {
+    if (!celebrating) return;
+    const timer = window.setTimeout(() => setCelebrating(false), 1200);
+    return () => clearTimeout(timer);
+  }, [celebrating]);
+
+  useEffect(() => {
+    if (!data.settings.sound || !data.settings.effectsSound) stopFeedbackSound();
+    if (!data.settings.sound) window.speechSynthesis?.cancel();
+  }, [data.settings.sound, data.settings.effectsSound]);
 
   useEffect(() => {
     if (page !== 'exercise' || pause || !visible || !current || current.answered || current.status !== 'active') return;
@@ -99,6 +114,11 @@ export default function App() {
   }, [page, pause, visible, sessionId, current?.answered, current?.status]);
 
   function go(next: Page) { setPause(false); setPage(next); }
+  function buttonSound(event: MouseEvent<HTMLDivElement>) {
+    if (!data.settings.sound || !data.settings.effectsSound) return;
+    const target = event.target instanceof Element ? event.target.closest('button') : null;
+    if (target && !target.disabled) playFeedbackSound('click');
+  }
   function updateSession(fn: (s: Session) => Session) {
     setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === sessionId ? fn(s) : s) }));
   }
@@ -115,6 +135,8 @@ export default function App() {
     setChosen(value);
     if (value === question.letter) {
       setFeedback('จับคู่ได้แล้ว! ขอบคุณที่ตั้งใจนะ');
+      setCelebrating(true);
+      if (data.settings.sound && data.settings.effectsSound) playFeedbackSound('success');
       updateSession(s => ({ ...s, answered: true, records: [...s.records, { questionIndex: s.questionIndices[s.index], letter: question.letter, word: question.word, category: resultCategory(s.wrongAttempts, s.hintLevel), wrongAttempts: s.wrongAttempts, hintLevel: s.hintLevel, activeMs: s.currentMs }] }));
     } else {
       setFeedback('ค่อย ๆ ดู แล้วลองอีกครั้งนะ ใช้ปุ่มช่วยได้');
@@ -160,7 +182,7 @@ export default function App() {
     </article>;
   }
 
-  return <div className={`app ${data.settings.largeText ? 'large-text' : ''} ${data.settings.calm ? 'calm' : ''}`}>
+  return <div className={`app ${data.settings.largeText ? 'large-text' : ''} ${data.settings.calm ? 'calm' : ''}`} onClickCapture={buttonSound}>
     <a className="skip-link" href="#main">ข้ามไปเนื้อหาหลัก</a>
     {page !== 'exercise' && <aside className="sidebar">
       <button className="brand" onClick={() => go('home')} aria-label="ReadTech Companion หน้าหลัก"><span className="brand-mark"><Icon name="book" size={27} /></span><span>ReadTech<small>COMPANION</small></span></button>
@@ -214,7 +236,7 @@ export default function App() {
             {current.hintLevel>0 && <div className="hint-box" role="status"><span className="hint-title"><Icon name="help" size={18}/>ตัวช่วย {current.hintLevel}/3</span><p>{current.hintLevel===1 ? `ภาพนี้คือ ${question.word} ค่อย ๆ ดูรูปตัวอักษรนะ` : current.hintLevel===2 ? `ฟังอีกครั้ง: ${question.speech}` : <>ดูตัวอย่าง: <strong className="hint-letter">{question.letter}</strong> — {question.speech} แล้วลองเลือกด้วยตัวเอง</>}</p></div>}
             <div className={'options ' + (question.options.length===2?'two-options':'')} aria-label="ตัวเลือก">{orderedOptions(question.options, current.id+':'+current.index).map((value:string)=><button className={'letter-option ' + (chosen===value?'picked ':'') + (current.answered && chosen===value?'correct ':'')} key={value} disabled={current.answered} aria-pressed={chosen===value} aria-label={`เลือก ${value}`} onClick={()=>lesson.mode==='match'?setChosen(value):answer(value)}>{value}</button>)}</div>
             {lesson.mode==='match' && <button className={'match-slot ' + (current.answered?'matched':'')} disabled={!chosen || current.answered} onClick={()=>chosen && answer(chosen)} aria-label="วางตัวอักษรที่เลือกลงช่องจับคู่">{chosen ?? <Icon name="puzzle"/>}<span>{current.answered?'จับคู่แล้ว':'แตะที่นี่เพื่อจับคู่'}</span></button>}
-            <div className={'feedback ' + (current.answered?'success':'')} role="status" aria-live="polite">{current.answered && <Icon name={current.records.at(-1)?.category==='skipped'?'leaf':'check'}/>}<span>{feedback || (current.answered ? current.records.at(-1)?.category==='skipped'?'เก็บข้อนี้ไว้ฝึกอีกครั้ง':'ทำกิจกรรมข้อนี้แล้ว ไปต่อได้เลย' : 'ลองด้วยตัวเอง หรือใช้ปุ่มช่วยได้')}</span></div>
+            <div className="feedback-wrap">{celebrating && <AnswerStars/>}<div className={'feedback ' + (current.answered?'success':'')} role="status" aria-live="polite">{current.answered && <Icon name={current.records.at(-1)?.category==='skipped'?'leaf':'check'}/>}<span>{feedback || (current.answered ? current.records.at(-1)?.category==='skipped'?'เก็บข้อนี้ไว้ฝึกอีกครั้ง':'ทำกิจกรรมข้อนี้แล้ว ไปต่อได้เลย' : 'ลองด้วยตัวเอง หรือใช้ปุ่มช่วยได้')}</span></div></div>
             <div className="exercise-actions">{current.answered ? <button ref={nextRef} className="primary next-button" onClick={next}>{current.index+1===current.questionIndices.length?'ดูรางวัลของฉัน':'ข้อต่อไป'}<Icon name="arrow"/></button> : <><button className="secondary" onClick={help}><Icon name="help"/>{current.hintLevel===3?'ดูตัวอย่างอีกครั้ง':'ช่วยทีละนิด'}</button><button className="text-button" onClick={skip}>ฝึกข้อนี้ภายหลัง</button></>}</div>
           </section>
           <p className="exercise-footer"><Icon name="heart" size={17}/>ไม่มีการจับเวลาแข่งขัน · พักได้ทุกเมื่อ</p>
@@ -241,7 +263,7 @@ export default function App() {
 
         {page === 'settings' && <>
           <div className="page-heading"><div><span className="eyebrow pink">ปรับให้สบายสำหรับเรา</span><h1 tabIndex={-1}>ปรับการใช้งาน</h1><p>ผู้ดูแลช่วยเลือกการตั้งค่าที่เหมาะกับผู้เรียนได้</p></div></div>
-          <section className="settings-panel">{[{key:'largeText',title:'ตัวหนังสือใหญ่ขึ้น',detail:'ขยายคำสั่งและข้อความประกอบ'},{key:'sound',title:'เปิดปุ่มเสียงตัวอย่าง',detail:'ใช้เสียงสังเคราะห์ภาษาไทยของอุปกรณ์ ไม่มีการบันทึกไมโครโฟน'},{key:'slow',title:'เสียงอ่านช้าลง',detail:'ปรับความเร็วเสียงสังเคราะห์ให้นุ่มนวลขึ้น'},{key:'calm',title:'โหมดสงบ',detail:'ลดการเคลื่อนไหวและเอฟเฟกต์ตกแต่ง'}].map(x=><label key={x.key} className="setting-row"><span><strong>{x.title}</strong><small>{x.detail}</small></span><input type="checkbox" checked={data.settings[x.key as keyof typeof data.settings]} onChange={e=>setData(d=>({...d,settings:{...d.settings,[x.key]:e.target.checked}}))}/></label>)}</section>
+          <section className="settings-panel">{[{key:'largeText',title:'ตัวหนังสือใหญ่ขึ้น',detail:'ขยายคำสั่งและข้อความประกอบ'},{key:'sound',title:'เปิดเสียง',detail:'เปิดเสียงตัวอย่าง เสียงปุ่ม และเสียงฉลอง ไม่มีการบันทึกไมโครโฟน'},{key:'effectsSound',title:'เสียงปุ่มและเสียงฉลอง',detail:'เสียงสั้นเมื่อกดปุ่ม และทำนองนุ่ม ๆ เมื่อตอบถูก ปิดแยกจากเสียงอ่านได้'},{key:'slow',title:'เสียงอ่านช้าลง',detail:'ปรับความเร็วเสียงสังเคราะห์ให้นุ่มนวลขึ้น'},{key:'calm',title:'โหมดสงบ',detail:'ลดการเคลื่อนไหว ดาวจะแสดงแบบนิ่ง ปิดโหมดนี้เพื่อให้ดาวเด้ง'}].map(x=><label key={x.key} className="setting-row"><span><strong>{x.title}</strong><small>{x.detail}</small></span><input type="checkbox" checked={data.settings[x.key as keyof typeof data.settings]} onChange={e=>setData(d=>({...d,settings:{...d.settings,[x.key]:e.target.checked}}))}/></label>)}</section>
           <section className="settings-panel"><h2>ข้อมูลในเครื่องนี้</h2><p>ข้อมูลไม่ส่งไป GitHub หรือเซิร์ฟเวอร์ และอาจหายเมื่อคุณล้างข้อมูลเบราว์เซอร์ กรุณาส่งออกผลก่อนเปลี่ยนเครื่องหรือเปลี่ยนผู้เรียน</p><div className="setting-actions"><button className="secondary" onClick={exportResults}><Icon name="download"/>ส่งออกผล</button><button className="text-button danger" onClick={()=>setConfirmReset(true)}>ล้างผลเพื่อเปลี่ยนผู้เรียน</button></div></section>
         </>}
 

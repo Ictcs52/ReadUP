@@ -9,5 +9,5 @@ export type Session = {
   records: RecordResult[]; wrongAttempts: number; hintLevel: number; currentMs: number;
   answered: boolean; observation?: Observation;
 };
-export type Settings = { largeText: boolean; sound: boolean; slow: boolean; calm: boolean };
+export type Settings = { largeText: boolean; sound: boolean; effectsSound: boolean; slow: boolean; calm: boolean };
 export type AppData = { version: 1; sessions: Session[]; settings: Settings };

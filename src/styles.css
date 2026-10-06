@@ -119,6 +119,17 @@ dialog { width: min(500px,calc(100% - 32px)); border: 1px solid #efd7e3; border-
 .hero p { color: #745566; }
 .app-footer, .app-footer button, .exercise-footer { color: #715a68; }
 .not-yet .badge-state { color: #715a68; }
+.feedback-wrap { position: relative; }
+.answer-stars { position: absolute; top: 8px; left: 0; right: 0; height: 32px; z-index: 2; pointer-events: none; }
+.celebration-star { position: absolute; left: calc(50% - 14px); top: 0; color: #a87928; transform: translate(var(--dx), var(--dy)); animation: answer-star-pop .92s var(--delay) ease-out both; }
+.celebration-star svg { fill: #f6c768; filter: drop-shadow(0 2px 2px #77532a12); }
+@keyframes answer-star-pop {
+  0% { opacity: 0; transform: translate(0, 18px) scale(.25) rotate(-12deg); }
+  28% { opacity: 1; transform: translate(var(--dx), calc(var(--dy) - 18px)) scale(1.18) rotate(8deg); }
+  48% { opacity: 1; transform: translate(var(--dx), var(--dy)) scale(.92) rotate(-3deg); }
+  68% { opacity: 1; transform: translate(var(--dx), calc(var(--dy) - 5px)) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) - 16px)) scale(.85); }
+}
 .calm *, .calm *::before, .calm *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 @media(min-width:1550px) { .hero { min-height: 370px; }.hero-copy { padding: 36px 0 35px 44px; }.hero h2 { font-size: 46px; }.hero-friend { width: 345px; }.art-orbit { width: 320px; height: 320px; }.lesson-card { padding: 23px 20px; } }
