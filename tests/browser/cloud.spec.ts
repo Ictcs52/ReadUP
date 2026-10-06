@@ -21,6 +21,8 @@ function mockBackend() {
     { id: second, teacher_id: owner, auth_user_id: peer, login_id: '9876543210', login_enabled: true, class_name: 'ป.1/1', code: 'RT002', display_name: 'นักอ่านสอง', created_at: '2026-10-06T00:01:00Z' },
   ];
   const sessions = new Map<string, any>();
+  const readings = new Map<string, any>();
+  let failReadingWrites = false;
   let failWrites = false;
   const requests: string[] = [];
   async function install(context: BrowserContext) {
@@ -64,6 +66,22 @@ function mockBackend() {
         if (body.action==='enable') s.login_enabled=true;
         return route.fulfill({json:{student:s,loginId:s.login_id,password:['disable','enable'].includes(body.action)?'':`RT-${s.login_id}`}});
       }
+      if (url.pathname === '/rest/v1/readtech_reading_assessments') {
+        const studentId=url.searchParams.get('student_id')?.replace('eq.','');
+        const id=url.searchParams.get('id')?.replace('eq.','');
+        if(request.method()==='GET')return route.fulfill({json:[...readings.values()].filter(row=>row.teacher_id===uid&&(!studentId||row.student_id===studentId)&&(!id||row.id===id)).sort((a,b)=>Date.parse(b.assessed_at)-Date.parse(a.assessed_at))});
+        if(failReadingWrites)return route.fulfill({status:503,json:{message:'Connection unavailable'}});
+        if(uid!==owner)return route.fulfill({status:403,json:{code:'42501',message:'Teacher access required'}});
+        if(request.method()==='POST'){
+          if(readings.has(body.id))return route.fulfill({status:409,json:{code:'23505',message:'Duplicate assessment'}});
+          const value={...body,revision:1,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};readings.set(value.id,value);return route.fulfill({status:201,json:value});
+        }
+        if(request.method()==='PATCH'){
+          const old=readings.get(id!);const revision=Number(url.searchParams.get('revision')?.replace('eq.',''));
+          if(!old||old.student_id!==studentId||old.teacher_id!==uid||old.revision!==revision)return route.fulfill({json:null});
+          const value={...old,...body,revision:old.revision+1,updated_at:new Date().toISOString()};readings.set(old.id,value);return route.fulfill({json:value});
+        }
+      }
       if (url.pathname === '/rest/v1/readtech_sessions') {
         const studentId = url.searchParams.get('student_id')?.replace('eq.', '');
         return route.fulfill({ json: [...sessions.values()].filter(s => (s.owner === uid || students.some(p => p.id === s.student_id && p.auth_user_id === uid)) && s.student_id === studentId).map(({ owner: _, student_id: __, ...row }) => row) });
@@ -79,7 +97,7 @@ function mockBackend() {
       return route.fulfill({ status: 404, json: { message: 'Unexpected endpoint' } });
     });
   }
-  return { install, students, sessions, requests, setFailWrites: (value: boolean) => { failWrites = value; } };
+  return { install, students, sessions, readings, requests, setFailReadingWrites:(value:boolean)=>{failReadingWrites=value;}, setFailWrites: (value: boolean) => { failWrites = value; } };
 }
 async function openAccount(page: Page) {
   const menu=page.getByRole('button', { name: /^(สำหรับครู|บัญชีของฉัน)$/ });
@@ -117,6 +135,58 @@ test('setup is explicit and secret keys cannot be stored', async ({ page }) => {
   await page.getByRole('button', { name: 'บันทึกการเชื่อมต่อ', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('ห้ามใช้ Secret');
   expect(await page.evaluate(() => localStorage.getItem('readtech-cloud-config'))).toBeNull();
+});
+
+test('teacher records actual reading without a game round, corrects it and keeps learner reports separate',async({page,context})=>{
+  const backend=mockBackend();await backend.install(context);await login(page);await selectFirst(page);
+  const panel=page.getByRole('region',{name:'บันทึกการอ่านของ นักอ่านหนึ่ง',exact:true});
+  await expect(panel.getByText('ยังไม่มีบันทึกการอ่าน ครูเพิ่มได้โดยไม่ต้องรอให้นักเรียนทำกิจกรรม',{exact:true})).toBeVisible();
+  await panel.getByRole('button',{name:'เพิ่มบันทึกการอ่าน',exact:true}).click();
+  const form=panel.getByRole('form',{name:'เพิ่มบันทึกการอ่าน',exact:true});
+  await form.getByLabel('คำหรือประโยคที่ใช้ประเมิน (ถ้ามี)',{exact:true}).fill('ไก่ ม้า ปลา');
+  await form.getByLabel('จำนวนคำที่อ่านถูก (คำ)',{exact:true}).fill('8');await form.getByLabel('จำนวนคำที่อ่านผิด (คำ)',{exact:true}).fill('2');
+  await form.getByLabel('การสลับตัวอักษร (ครั้ง)',{exact:true}).fill('1');await form.getByLabel('การอ่านข้ามคำ (คำ)',{exact:true}).fill('1');await form.getByLabel('การหยุดอ่านกลางคัน (ครั้ง)',{exact:true}).fill('2');
+  await form.getByLabel('เวลาที่ใช้ในการอ่าน (วินาที)',{exact:true}).fill('45');await form.getByLabel('ระดับความช่วยเหลือ',{exact:true}).selectOption('guided');
+  await form.getByLabel('หมายเหตุ (ถ้ามี)',{exact:true}).fill('=SUM(A1:A5)');await expect(form.getByText('8 จาก 10 คำ · ถึงเป้าหมาย 80%',{exact:true})).toBeVisible();
+  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+  await page.screenshot({path:'test-results/reading-form-mobile.png',fullPage:true});
+  await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
+  expect(await page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>({id:v.id,nodes:v.nodes.map((n:any)=>({target:n.target,failureSummary:n.failureSummary}))})))).toEqual([]);
+  await form.getByRole('button',{name:'บันทึกผลการอ่าน',exact:true}).click();await expect(form).toHaveCount(0);
+  await expect(panel.getByRole('heading',{name:'ประวัติการอ่าน 1 ครั้ง',exact:true})).toBeVisible();expect(backend.sessions.size).toBe(0);expect(backend.readings.size).toBe(1);
+  const row=[...backend.readings.values()][0];expect(row.student_id).toBe(first);expect(row.correct_words).toBe(8);expect(row.reading_seconds).toBe(45);expect(row.revision).toBe(1);
+  const download=page.waitForEvent('download');await panel.getByRole('button',{name:'ส่งออกบันทึกการอ่าน CSV',exact:true}).click();const file=await download;expect(file.suggestedFilename()).toBe('reading-RT001.csv');
+  const csv=await readFile((await file.path())!,'utf8');expect(csv).toContain('"80.00","ถึงเป้าหมาย"');expect(csv).toContain("'=SUM(A1:A5)");
+  await panel.getByRole('button',{name:/^แก้ไขบันทึกการอ่าน /}).click();const edit=panel.getByRole('form',{name:'แก้ไขบันทึกการอ่าน',exact:true});
+  await edit.getByLabel('จำนวนคำที่อ่านถูก (คำ)',{exact:true}).fill('7');await edit.getByLabel('จำนวนคำที่อ่านผิด (คำ)',{exact:true}).fill('3');
+  await edit.getByRole('button',{name:'บันทึกผลการอ่าน',exact:true}).click();await expect(edit).toHaveCount(0);await expect(panel.getByText('7 จาก 10 คำ · ยังไม่ถึงเป้าหมาย 80%',{exact:true})).toBeVisible();expect(backend.readings.get(row.id).revision).toBe(2);
+  await page.getByRole('combobox',{name:'ผู้เรียนที่ต้องการดูรายงาน',exact:true}).selectOption(second);const otherPanel=page.getByRole('region',{name:'บันทึกการอ่านของ นักอ่านสอง',exact:true});
+  await expect(otherPanel.getByText('ยังไม่มีบันทึกการอ่าน ครูเพิ่มได้โดยไม่ต้องรอให้นักเรียนทำกิจกรรม',{exact:true})).toBeVisible();await expect(otherPanel.getByText('อ่านถูก 70%',{exact:true})).toHaveCount(0);
+  await page.reload();await expect(page.getByRole('button',{name:'สำหรับครู',exact:true})).toBeVisible();await openAccount(page);await selectFirst(page);await expect(panel.getByText('7 จาก 10 คำ · ยังไม่ถึงเป้าหมาย 80%',{exact:true})).toBeVisible();
+});
+
+test('reading form preserves failed writes, validates skipped words and refuses stale corrections',async({page,context})=>{
+  const backend=mockBackend();await backend.install(context);await login(page);await selectFirst(page);
+  const panel=page.getByRole('region',{name:'บันทึกการอ่านของ นักอ่านหนึ่ง',exact:true});await panel.getByRole('button',{name:'เพิ่มบันทึกการอ่าน',exact:true}).click();
+  const form=panel.getByRole('form',{name:'เพิ่มบันทึกการอ่าน',exact:true});await form.getByLabel('จำนวนคำที่อ่านถูก (คำ)',{exact:true}).fill('4');await form.getByLabel('จำนวนคำที่อ่านผิด (คำ)',{exact:true}).fill('1');await form.getByLabel('การอ่านข้ามคำ (คำ)',{exact:true}).fill('2');await form.getByLabel('ระดับความช่วยเหลือ',{exact:true}).selectOption('independent');
+  await form.getByRole('button',{name:'บันทึกผลการอ่าน',exact:true}).click();await expect(form.getByRole('alert')).toContainText('คำที่อ่านข้ามต้องนับรวม');expect(backend.readings.size).toBe(0);
+  await form.getByLabel('การอ่านข้ามคำ (คำ)',{exact:true}).fill('1');backend.setFailReadingWrites(true);await form.getByRole('button',{name:'บันทึกผลการอ่าน',exact:true}).click();await expect(form.getByRole('alert')).toContainText('ข้อมูลที่กรอกยังอยู่');await expect(form.getByLabel('จำนวนคำที่อ่านถูก (คำ)',{exact:true})).toHaveValue('4');
+  backend.setFailReadingWrites(false);await form.getByRole('button',{name:'บันทึกผลการอ่าน',exact:true}).click();await expect(form).toHaveCount(0);expect(backend.readings.size).toBe(1);const row=[...backend.readings.values()][0];expect(row.reading_seconds).toBeNull();
+  await panel.getByRole('button',{name:/^แก้ไขบันทึกการอ่าน /}).click();const edit=panel.getByRole('form',{name:'แก้ไขบันทึกการอ่าน',exact:true});row.revision++;row.note='ฉบับที่แก้จากอีกเครื่อง';
+  await edit.getByLabel('หมายเหตุ (ถ้ามี)',{exact:true}).fill('ฉบับเก่า');await edit.getByRole('button',{name:'บันทึกผลการอ่าน',exact:true}).click();await expect(edit.getByRole('alert')).toContainText('เปลี่ยนจากอีกเครื่อง');expect(row.note).toBe('ฉบับที่แก้จากอีกเครื่อง');
+  await edit.getByRole('button',{name:'โหลดบันทึกล่าสุด',exact:true}).click();await expect(edit).toHaveCount(0);await panel.getByText('รายละเอียดการอ่าน',{exact:true}).click();await expect(panel.getByText('หมายเหตุ: ฉบับที่แก้จากอีกเครื่อง',{exact:true})).toBeVisible();
+});
+
+test('retrying a reading insert after a lost response uses the original ID and creates only one record',async({page,context})=>{
+  const backend=mockBackend();await backend.install(context);let lost=true;
+  await context.route('https://readtechtest.supabase.co/rest/v1/readtech_reading_assessments**',route=>{
+    if(route.request().method()==='POST'&&lost){lost=false;const value={...route.request().postDataJSON(),revision:1,created_at:new Date().toISOString(),updated_at:new Date().toISOString()};backend.readings.set(value.id,value);return route.fulfill({status:503,json:{message:'Response lost'}});}
+    return route.fallback();
+  });
+  await login(page);await selectFirst(page);const panel=page.getByRole('region',{name:'บันทึกการอ่านของ นักอ่านหนึ่ง',exact:true});await panel.getByRole('button',{name:'เพิ่มบันทึกการอ่าน',exact:true}).click();
+  const form=panel.getByRole('form',{name:'เพิ่มบันทึกการอ่าน',exact:true});await form.getByLabel('จำนวนคำที่อ่านถูก (คำ)',{exact:true}).fill('4');await form.getByLabel('จำนวนคำที่อ่านผิด (คำ)',{exact:true}).fill('1');await form.getByLabel('ระดับความช่วยเหลือ',{exact:true}).selectOption('independent');
+  await form.getByRole('button',{name:'บันทึกผลการอ่าน',exact:true}).click();await expect(form.getByRole('alert')).toContainText('บันทึกไม่สำเร็จ');expect(backend.readings.size).toBe(1);const id=[...backend.readings.keys()][0];
+  await form.getByRole('button',{name:'บันทึกผลการอ่าน',exact:true}).click();await expect(form).toHaveCount(0);expect([...backend.readings.keys()]).toEqual([id]);await expect(panel.getByRole('heading',{name:'ประวัติการอ่าน 1 ครั้ง',exact:true})).toBeVisible();
 });
 
 test('an authenticated but unapproved account cannot open student management', async ({ page, context }) => {

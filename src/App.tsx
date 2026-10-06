@@ -8,6 +8,7 @@ import { useCloudAccount } from './useCloudAccount';
 import { markChanged, useLearningStore } from './useLearningStore';
 import { matchesGrade } from './gradeLevels';
 import { ReportStudentPicker } from './components/ReportStudentPicker';
+import { ReadingAssessmentPanel } from './components/ReadingAssessmentPanel';
 import { LearnerHistory } from './components/LearnerHistory';
 import { TeacherPanel } from './components/TeacherPanel';
 import { Icon } from './components/Icon';
@@ -304,6 +305,7 @@ export default function App() {
         </>}
         {page === 'report' && canReport && <>
           <div className="page-heading"><div><span className="eyebrow pink">ติดตามกิจกรรม ไม่ตัดสินผู้เรียน</span><h1 tabIndex={-1}>รายงานผู้เรียน</h1><p>{store.cloud?`ติดตามความก้าวหน้าของ ${account.student!.display_name}`:'ผลจากการทดลองบนเครื่องนี้'}</p></div><button className="secondary" disabled={!data.sessions.some(s=>s.records.length)} onClick={exportResults}><Icon name="download"/>ส่งออก CSV</button></div>
+          <ReadingAssessmentPanel key={account.student!.id} client={account.client!} student={account.student!} teacherId={account.teacher!.id}/>
           <div className="notice"><Icon name="shield"/><div><strong>{store.cloud?`รายงานของ ${account.student!.display_name} · ${account.student!.code}`:'โหมดทดลอง · ผลเฉพาะในเครื่องนี้'}</strong><p>{store.cloud?'ผลฝึกมาจากบัญชีนักเรียน ครูดูรายงานและบันทึกข้อสังเกตได้':'ใช้เมนูสำหรับครูเพื่อเข้าสู่ระบบครูและเลือกผู้เรียน หากทดลองโดยไม่เชื่อมฐานข้อมูล ผลจะอยู่ในเบราว์เซอร์นี้'} คะแนนกิจกรรมแยกจากการประเมินอ่านออกเสียงของครู</p></div></div>
           <div className="report-stats">{[{label:'ทำได้เองครั้งแรก',value:total.independent},{label:'ทำได้หลังลองใหม่',value:total.retried},{label:'ทำได้หลังช่วย',value:total.assisted},{label:'เก็บไว้ฝึกภายหลัง',value:total.skipped}].map(x=><div className="report-stat" key={x.label}><strong>{x.value}<small> ข้อ</small></strong><span>{x.label}</span></div>)}</div>
           <p className="fine-print">จากกิจกรรมที่บันทึก {total.total} ข้อ · ทำได้เองครั้งแรก {percent(total.independent,total.total)}% · ไม่รวมข้อที่ยังไม่ได้ทำในรอบที่ค้างอยู่</p>
