@@ -80,6 +80,7 @@ async function keys(page: Page): Promise<string[]> {
 }
 
 test('setup is explicit and secret keys cannot be stored', async ({ page }) => {
+  await page.route('**/cloud-config.json', route => route.fulfill({ json: { url: '', publishableKey: '' } }));
   await page.goto('./'); await openAccount(page);
   await expect(page.getByText('ยังไม่ได้ตั้งค่า Supabase', { exact: false })).toBeVisible();
   await page.getByText('ตั้งค่าฐานข้อมูลสำหรับผู้ดูแล', { exact: true }).click();
@@ -96,6 +97,19 @@ test('an authenticated but unapproved account cannot open student management', a
   await expect(page.getByRole('alert')).toContainText('ยังไม่ได้รับสิทธิ์ครู');
   await expect(page.getByRole('heading', { name: 'เพิ่มผู้เรียน', exact: true })).toHaveCount(0);
   expect(backend.requests).not.toContain('/rest/v1/readtech_students');
+});
+
+test('central configuration opens teacher login on a new browser and survives a config fetch failure', async ({ page, context }) => {
+  const backend = mockBackend(); await backend.install(context);
+  await page.goto('./'); await openAccount(page);
+  await expect(page.getByRole('heading', { name: 'เข้าสู่ระบบครู', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Project URL', { exact: true })).toHaveCount(0);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('readtech-cloud-config')!));
+  expect(saved.url).toBe('https://readtechtest.supabase.co');
+  await context.route('**/cloud-config.json', route => route.abort());
+  await page.reload(); await openAccount(page);
+  await expect(page.getByRole('heading', { name: 'เข้าสู่ระบบครู', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Project URL', { exact: true })).toHaveCount(0);
 });
 
 test('profiles isolate local drafts, creating a student works, and failed writes persist across reload', async ({ page, context }) => {

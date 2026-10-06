@@ -85,6 +85,6 @@ npm run test:browser
 
 ดู [คู่มือตั้งค่า Supabase](docs/CLOUD_SETUP.md) และ [SQL migration](supabase/migrations/202610060001_readtech_cloud.sql)
 
-`public/cloud-config.json` ยังเป็นค่าว่างจนกว่าจะกำหนด Project URL และ Publishable key จริง ไม่ได้สร้างบัญชีหรือฐานข้อมูลจากเว็บอัตโนมัติ ไม่ใช้ Secret/service_role key ใน frontend
+`public/cloud-config.json` ตั้งค่ากลางสำหรับโปรเจกต์ ReadUP แล้ว ครูทุกเครื่องเข้าสู่ระบบด้วยอีเมลและรหัสผ่านได้โดยไม่ต้องกรอก Project URL / Publishable key เอง ค่าการเชื่อมต่อเป็นค่าสาธารณะ สิทธิ์ข้อมูลตรวจด้วยบัญชีครูและ RLS ไม่ใช้ Secret/service_role key ใน frontend
 
 ทดสอบฐานข้อมูลด้วย PostgreSQL ฝังตัว (PGlite) เพื่อยืนยัน RLS, สิทธิ์ครู, ownership, การปฏิเสธ anonymous และการตรวจ revision ส่วน browser tests ใช้ API จำลองสำหรับหลายผู้เรียน/หลายเครื่อง/ผลรอส่ง การผ่านชุดทดสอบนี้ยังไม่เท่ากับการเชื่อมโปรเจกต์จริง
