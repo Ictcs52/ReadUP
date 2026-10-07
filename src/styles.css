@@ -1,4 +1,4 @@
-:root { font-family: 'Noto Sans Thai', 'Tahoma', sans-serif; color: #352735; background: #fff8fa; font-synthesis: none; --pink: #9d174d; --pink-soft: #fae8ef; --muted: #756370; --line: #efe2e8; }
+:root { font-family: 'Sarabun', 'Tahoma', sans-serif; color: #352735; background: #fff8fa; font-synthesis: none; --pink: #9d174d; --pink-soft: #fae8ef; --muted: #756370; --line: #efe2e8; }
 .cloud-panel { background:#fff; border:1px solid var(--line); border-radius:22px; padding:28px; margin-bottom:22px; }
 .cloud-panel h2 { font-size:22px; margin-bottom:9px; }.cloud-panel p { color:var(--muted); font-size:14px; line-height:1.9; margin-bottom:16px; }
 .cloud-symbol { display:grid; place-items:center; width:58px; height:58px; color:var(--pink); background:var(--pink-soft); border-radius:18px; margin-bottom:18px; }

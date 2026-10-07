@@ -143,6 +143,13 @@ test('student accounts restrict reads and writes to self and preserve teacher as
     assert.deepEqual((await asUser(teacher,'select payload from public.readtech_sessions where lesson_id=11')).rows[0].payload.records.map(r=>r.word),builder.questions.map(q=>q.word));
     assert.equal((await asUser(peer,'select id from public.readtech_sessions where lesson_id=11')).rows.length,0);
     await assert.rejects(save(teacher,student,2,{...completedBuild,wordDraft:{consonant:'ก',vowel:'า'}}),e=>e.code==='42501');
+    const missingRound={...buildRound,id:'12121212-1212-4212-8212-121212121212',lessonId:12,wordDraft:{consonant:'',vowel:'า'}};
+    await save(pupil,student,0,missingRound);
+    assert.deepEqual((await asUser(pupil,'select payload from public.readtech_sessions where lesson_id=12')).rows[0].payload.wordDraft,{consonant:'',vowel:'า'});
+    const missing=curriculum.lessons.find(l=>l.id===12);
+    await save(pupil,student,1,{...missingRound,status:'complete',endedAt:5000,index:4,answered:true,records:missing.questions.map((q,i)=>({questionIndex:i,letter:q.letter,word:q.word,category:'independent',wrongAttempts:0,hintLevel:0,activeMs:100}))});
+    assert.deepEqual((await asUser(teacher,'select payload from public.readtech_sessions where lesson_id=12')).rows[0].payload.records.map(r=>r.word),missing.questions.map(q=>q.word));
+    assert.equal((await asUser(peer,'select id from public.readtech_sessions where lesson_id=12')).rows.length,0);
     for(const lessonId of [9,10]){
       const lesson=curriculum.lessons.find(l=>l.id===lessonId);
       const id=lessonId===9?'99999999-9999-4999-8999-999999999999':'10101010-1010-4010-8010-101010101010';

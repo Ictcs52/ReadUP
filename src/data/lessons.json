@@ -84,6 +84,13 @@
       {"letter":"สี","word":"สี","speech":"สี","art":"paint","options":["สี","สา","สู"],"prompt":"แตะพยัญชนะและสระ เพื่อสร้างคำจากภาพ","build":{"consonants":["ส","ม"],"vowels":["า","ี","ู"]}},
       {"letter":"กา","word":"กา","speech":"กา","art":"crow","options":["กา","กี","กู"],"prompt":"แตะพยัญชนะและสระ เพื่อสร้างคำจากภาพ","build":{"consonants":["ก","ต"],"vowels":["า","ี","ู"]}},
       {"letter":"งู","word":"งู","speech":"งู","art":"snake","options":["งู","งา","งี"],"prompt":"แตะพยัญชนะและสระ เพื่อสร้างคำจากภาพ","build":{"consonants":["ง","ป"],"vowels":["า","ี","ู"]}}
+    ]},
+    {"id":12,"title":"เติมส่วนที่หาย","description":"ดูภาพ แล้วเติมพยัญชนะหรือสระให้คำสมบูรณ์","mode":"build-word","questions":[
+      {"letter":"ตา","word":"ตา","speech":"ตา","art":"eye","options":["ตา","ตี","ตู"],"prompt":"เติมสระที่หาย ให้เป็นคำจากภาพ","build":{"missing":"vowel","consonants":["ต"],"vowels":["า","ี","ู"]}},
+      {"letter":"ปู","word":"ปู","speech":"ปู","art":"crab","options":["ปู","ปา","ปี"],"prompt":"เติมสระที่หาย ให้เป็นคำจากภาพ","build":{"missing":"vowel","consonants":["ป"],"vowels":["า","ี","ู"]}},
+      {"letter":"สี","word":"สี","speech":"สี","art":"paint","options":["สี","มี","ปี"],"prompt":"เติมพยัญชนะที่หาย ให้เป็นคำจากภาพ","build":{"missing":"consonant","consonants":["ส","ม","ป"],"vowels":["ี"]}},
+      {"letter":"กา","word":"กา","speech":"กา","art":"crow","options":["กา","กี","กู"],"prompt":"เติมสระที่หาย ให้เป็นคำจากภาพ","build":{"missing":"vowel","consonants":["ก"],"vowels":["า","ี","ู"]}},
+      {"letter":"งู","word":"งู","speech":"งู","art":"snake","options":["งู","ปู","ดู"],"prompt":"เติมพยัญชนะที่หาย ให้เป็นคำจากภาพ","build":{"missing":"consonant","consonants":["ง","ป","ด"],"vowels":["ู"]}}
     ]}
   ]
 }

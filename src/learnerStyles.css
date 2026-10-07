@@ -1,4 +1,6 @@
 /* Friendly, quiet surfaces for existing learner activities. */
+h1,h2,h3,.instruction,.hero h2 { letter-spacing:0; }
+.adventure-card.adventure-12 { --tile:#fff4da; --tile-line:#e9d395; --tile-ink:#715611; }
 .exercise-toolbar.exercise-support { margin:8px auto 0; padding-top:0; border-top:0; }
 .exercise-support + .exercise-audio-status { margin:7px auto 14px; }
 .exercise-toolbar.exercise-response { grid-template-columns:minmax(0,1fr); }
