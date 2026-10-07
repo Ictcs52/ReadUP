@@ -189,3 +189,12 @@ h1,h2,h3,.instruction,.hero h2 { letter-spacing:0; }
 /* No idle animations; existing calm mode and OS preference cover brief feedback. */
 .learner-space.calm *, .learner-space.calm *::before, .learner-space.calm *::after { animation:none !important; transition:none !important; }
 @media(prefers-reduced-motion:reduce) { .learner-space *, .learner-space *::before, .learner-space *::after { animation:none !important; transition:none !important; } }
+
+/* Gentle encouragement after a checked answer; no alarm or extra animation. */
+.retry-popup { text-align:center; background:#fffdf8; border:2px solid #d4eae4; border-radius:28px; }
+.retry-popup .dialog-top h2 { color:#315e57; font-size:28px; line-height:1.5; }
+.retry-friend { display:block; width:160px; max-width:65%; margin:12px auto 0; }
+.retry-popup>p { color:#625363; font-size:19px; line-height:1.8; }
+.retry-popup .dialog-actions button { min-height:56px; font-size:19px; }
+.retry-popup::backdrop { background:#35273555; }
+@media(max-width:400px) { .retry-popup { padding:18px; }.retry-popup .dialog-top h2 { font-size:24px; }.retry-popup .dialog-actions { flex-direction:column; }.retry-popup .dialog-actions button { width:100%; } }

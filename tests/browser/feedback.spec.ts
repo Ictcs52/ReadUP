@@ -1,7 +1,11 @@
 import { authenticatedDemo } from './fixtures';
 import { test, expect, type Page } from '@playwright/test';
 
-test.beforeEach(async ({ page }) => { await authenticatedDemo(page); });
+test.beforeEach(async ({ page }) => { await authenticatedDemo(page);
+  // Keep the existing activity regressions exercising their original retry/help flow.
+  // Dedicated retry-popup tests cover both encouragement actions and keyboard dismissal.
+  await page.addLocatorHandler(page.getByRole('dialog',{name:'ลองใหม่อีกทีนะ',exact:true}),async dialog=>{await dialog.getByRole('button',{name:'ปิดหน้าต่าง',exact:true}).click();});
+});
 
 async function trackAudio(page: Page) {
   await page.addInitScript(() => {

@@ -5,7 +5,11 @@ import { readFile } from 'node:fs/promises';
 import curriculum from '../../src/data/lessons.json' with { type: 'json' };
 
 const require = createRequire(import.meta.url);
-test.beforeEach(async ({ page }) => { await authenticatedDemo(page); });
+test.beforeEach(async ({ page }) => { await authenticatedDemo(page);
+  // Keep the existing activity regressions exercising their original retry/help flow.
+  // Dedicated retry-popup tests cover both encouragement actions and keyboard dismissal.
+  await page.addLocatorHandler(page.getByRole('dialog',{name:'ลองใหม่อีกทีนะ',exact:true}),async dialog=>{await dialog.getByRole('button',{name:'ปิดหน้าต่าง',exact:true}).click();});
+});
 
 async function home(page: Page) { await page.goto('./'); await expect(page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true})).toBeVisible(); }
 async function answerAll(page: Page, id: number) {

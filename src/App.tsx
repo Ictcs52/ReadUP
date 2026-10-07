@@ -35,10 +35,10 @@ const nav = [
   { id: 'account', text: 'สำหรับครู', icon: 'shield' }
 ] as const;
 
-function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
+function Modal({ title, children, onClose, className }: { title: string; children: ReactNode; onClose: () => void; className?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => { ref.current?.showModal(); return () => ref.current?.close(); }, []);
-  return <dialog ref={ref} aria-labelledby="dialog-title" onCancel={e => { e.preventDefault(); onClose(); }}>
+  useEffect(() => { ref.current?.showModal(); if(className==='retry-popup') ref.current?.querySelector<HTMLButtonElement>('.primary')?.focus(); return () => ref.current?.close(); }, []);
+  return <dialog ref={ref} className={className} aria-labelledby="dialog-title" onCancel={e => { e.preventDefault(); onClose(); }}>
     <div className="dialog-top"><h2 id="dialog-title">{title}</h2><button className="icon-button" aria-label="ปิดหน้าต่าง" onClick={onClose}><Icon name="close" /></button></div>
     {children}
   </dialog>;
@@ -70,6 +70,7 @@ export default function App() {
   const [chosen, setChosen] = useState<string | null>(null);
   const [feedback, setFeedback] = useState('');
   const [celebrating, setCelebrating] = useState(false);
+  const [retryPopup, setRetryPopup] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
   const [visible, setVisible] = useState(!document.hidden);
@@ -104,7 +105,7 @@ export default function App() {
   useEffect(() => { if (page === 'report' && !canOpenReport) setPage('account'); }, [page, canOpenReport]);
 
   useEffect(() => {
-    setChosen(null); setFeedback(''); setAudioMessage(''); setCelebrating(false);
+    setRetryPopup(false); setChosen(null); setFeedback(''); setAudioMessage(''); setCelebrating(false);
     stopLessonAudio();
     mainRef.current?.querySelector<HTMLElement>('h1')?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -124,7 +125,7 @@ export default function App() {
   }, [data.settings.sound, data.settings.effectsSound]);
 
   useEffect(() => {
-    if (!canPractice || page !== 'exercise' || pause || breakReminder || confirmLogout || confirmRefresh || confirmStart || !visible || !current || current.answered || current.status !== 'active') return;
+    if (!canPractice || page !== 'exercise' || pause || retryPopup || breakReminder || confirmLogout || confirmRefresh || confirmStart || !visible || !current || current.answered || current.status !== 'active') return;
     let last = performance.now();
     const timer = window.setInterval(() => {
       const now = performance.now();
@@ -132,13 +133,13 @@ export default function App() {
       setData(d => ({ ...d, sessions: d.sessions.map(s => s.id === sessionId ? { ...s, currentMs: s.currentMs + elapsed } : s) }));
     }, 1000);
     return () => clearInterval(timer);
-  }, [canPractice, page, pause, breakReminder, confirmLogout, confirmRefresh, confirmStart, visible, sessionId, current?.answered, current?.status]);
+  }, [canPractice, page, pause, retryPopup, breakReminder, confirmLogout, confirmRefresh, confirmStart, visible, sessionId, current?.answered, current?.status]);
 
   useEffect(() => {
-    if (canPractice && page === 'exercise' && visible && !pause && !breakReminder && !confirmLogout && !confirmRefresh && !confirmStart && breakDue(current,data.settings.breakMinutes)) {
+    if (canPractice && page === 'exercise' && visible && !pause && !retryPopup && !breakReminder && !confirmLogout && !confirmRefresh && !confirmStart && breakDue(current,data.settings.breakMinutes)) {
       stopLessonAudio(); stopFeedbackSound(); setBreakReminder(true);
     }
-  }, [canPractice,page,visible,pause,breakReminder,confirmLogout,confirmRefresh,confirmStart,current,data.settings.breakMinutes]);
+  }, [canPractice,page,visible,pause,retryPopup,breakReminder,confirmLogout,confirmRefresh,confirmStart,current,data.settings.breakMinutes]);
 
   function acknowledgeBreak() {
     updateSession(s=>({...s,breakAcknowledgedMs:practiceElapsed(s)}));
@@ -174,6 +175,7 @@ export default function App() {
       updateSession(s => ({ ...s, answered: true, records: [...s.records, { questionIndex: s.questionIndices[s.index], letter: question.letter, word: question.word, category: resultCategory(s.wrongAttempts, s.hintLevel), wrongAttempts: s.wrongAttempts, hintLevel: s.hintLevel, activeMs: s.currentMs, answeredAt: Date.now() }] }));
     } else {
       setFeedback('ค่อย ๆ ดู แล้วลองอีกครั้งนะ ใช้ปุ่มช่วยได้');
+      setRetryPopup(true);
       updateSession(s => ({ ...s, wrongAttempts: s.wrongAttempts + 1 }));
     }
   }
@@ -197,10 +199,10 @@ export default function App() {
   }
   function retryChoice() {
     if (!canPractice || !current || current.answered) return;
-    stopLessonAudio(); setAudioMessage(''); setChosen(null); setCelebrating(false);
+    setRetryPopup(false); stopLessonAudio(); setAudioMessage(''); setChosen(null); setCelebrating(false);
     if (lesson?.mode==='build-word'||lesson?.mode==='order-word') updateSession(s=>({...s,wordDraft:undefined,wordOrder:undefined}));
     setFeedback('ลองเลือกใหม่ได้เลย ใช้ปุ่มช่วยได้');
-    requestAnimationFrame(()=>mainRef.current?.querySelector<HTMLButtonElement>('.letter-option:not(:disabled)')?.focus({preventScroll:true}));
+    requestAnimationFrame(()=>mainRef.current?.querySelector<HTMLButtonElement>('.letter-option:not(:disabled), .word-builder button:not(:disabled)')?.focus({preventScroll:true}));
   }
   function exportResults() {
     const blob = new Blob([exportCsv(data.sessions, lessons, account.student)], { type: 'text/csv;charset=utf-8' });
@@ -372,6 +374,7 @@ export default function App() {
       {page!=='exercise' && <footer className="app-footer"><span><Icon name="heart" size={14}/>เรียนรู้ด้วยความเข้าใจ ในจังหวะของตัวเอง</span><button onClick={()=>go('about')}>ReadTech Companion · รุ่นทดลอง</button></footer>}
     </div>
     {page!=='exercise' && <nav className="mobile-nav" aria-label="เมนูหลักบนมือถือ">{nav.map(n=><button key={n.id} className={(page===n.id || (n.id==='account' && page==='report'))?'active':''} aria-current={(page===n.id || (n.id==='account' && page==='report'))?'page':undefined} onClick={()=>go(n.id)}><Icon name={n.icon}/><span>{n.id==='account'&&account.learner?'บัญชีของฉัน':n.text}</span></button>)}</nav>}
+    {retryPopup && page==='exercise' && <Modal className="retry-popup" title="ลองใหม่อีกทีนะ" onClose={()=>setRetryPopup(false)}><BookFriend className="retry-friend"/><p>ค่อย ๆ ดู เราทำได้<br/>ลองอีกครั้ง หรือใช้ปุ่มช่วยได้นะ</p><div className="dialog-actions"><button className="primary" autoFocus onClick={retryChoice}><Icon name="replay"/>ลองอีกครั้ง</button><button className="secondary" onClick={()=>{retryChoice();help();}}><Icon name="help"/>ขอตัวช่วย</button></div></Modal>}
     {breakReminder && <Modal title="พักสายตาสักนิดไหม?" onClose={acknowledgeBreak}><BookFriend className="pause-friend"/><p>ฝึกมาอีก {data.settings.breakMinutes} นาทีแล้ว<br/>ยืดตัวหรือพักสักนิด แล้วกลับมาฝึกต่อได้</p><div className="dialog-actions"><button className="primary" onClick={acknowledgeBreak}>ฝึกต่อ<Icon name="arrow"/></button><button className="secondary" onClick={()=>{acknowledgeBreak();go('home');}}><Icon name="home"/>พักก่อน</button></div></Modal>}
     {pause && <Modal title="พักสักนิดก็ได้" onClose={()=>setPause(false)}><BookFriend className="pause-friend"/><p>เก็บกิจกรรมที่ทำไว้แล้ว<br/>กลับมาฝึกต่อจากเดิมได้เสมอ</p><div className="dialog-actions"><button className="primary" onClick={()=>setPause(false)}>ฝึกต่อ<Icon name="arrow"/></button><button className="secondary" onClick={()=>go('home')}><Icon name="home"/>กลับหน้าหลัก</button></div></Modal>}
     {confirmStart && <Modal title="เริ่มรอบใหม่ไหม?" onClose={()=>setConfirmStart(null)}><p>ผลที่ทำในรอบเดิมยังอยู่ในรายงาน แต่รอบเดิมจะจบก่อนครบ และจะเริ่มบทที่เลือกจากข้อแรก</p><div className="dialog-actions"><button className="primary" onClick={()=>start(confirmStart.id,confirmStart.indices,true)}>เริ่มรอบใหม่</button><button className="secondary" onClick={()=>setConfirmStart(null)}>ยังไม่เริ่ม</button></div></Modal>}
