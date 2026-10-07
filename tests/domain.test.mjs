@@ -5,12 +5,12 @@ import { resultCategory, summarize, percent, orderedOptions, csvCell, exportCsv,
 
 const curriculum = JSON.parse(fs.readFileSync(new URL('../src/data/lessons.json', import.meta.url),'utf8'));
 
-test('curriculum has exactly 30 planned lessons, with 20 playable lessons and 100 valid questions', () => {
+test('curriculum has exactly 30 planned lessons, with 30 playable lessons and 150 valid questions', () => {
   assert.equal(curriculum.levels.length,6);
   assert.equal(curriculum.levels.flatMap(l=>l.lessons).length,30);
-  assert.equal(curriculum.lessons.length,20);
-  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,100);
-  assert.deepEqual(curriculum.lessons.map(l=>l.id),Array.from({length:20},(_,i)=>i+1));
+  assert.equal(curriculum.lessons.length,30);
+  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,150);
+  assert.deepEqual(curriculum.lessons.map(l=>l.id),Array.from({length:30},(_,i)=>i+1));
   for(const l of curriculum.lessons) assert.equal(l.title,curriculum.levels[Math.ceil(l.id/5)-1].lessons[(l.id-1)%5]);
   for (const l of curriculum.lessons) for (const q of l.questions) {
     assert.ok(q.options.includes(q.letter));

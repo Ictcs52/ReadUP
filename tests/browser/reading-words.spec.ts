@@ -7,6 +7,7 @@ async function snapshot(page:Page){return page.evaluate(()=>new Promise<any>((re
 
 for(const id of [16,17,18,19,20])test('level-four lesson '+id+' supports gentle help, mobile resume and its own word results and trophy',async({page})=>{
  await authenticatedDemo(page);await page.goto('./');await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();
+ await page.getByRole('tab',{name:'LEVEL 4 พร้อมฝึก',exact:true}).click();
  await expect(page.getByRole('tab',{name:'LEVEL 4 พร้อมฝึก',exact:true})).toHaveAttribute('aria-selected','true');
  await expect(page.locator('.level-panel .lesson-card')).toHaveCount(5);await expect(page.locator('.level-panel .planned-lesson')).toHaveCount(0);
  const lesson=curriculum.lessons.find(l=>l.id===id)!;const first=lesson.questions[0];await page.getByRole('button',{name:'เริ่มฝึก '+lesson.title,exact:true}).click();
@@ -25,5 +26,5 @@ for(const id of [16,17,18,19,20])test('level-four lesson '+id+' supports gentle 
   await page.getByRole('button',{name:'เลือก '+q.word,exact:true}).click();await page.getByRole('button',{name:i===4?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();
  }
  const round=(await snapshot(page)).sessions[0];expect(round.lessonId).toBe(id);expect(round.records.map((r:any)=>r.word)).toEqual(lesson.questions.map(q=>q.word));expect(round.records[0]).toMatchObject({category:'assisted',wrongAttempts:1,hintLevel:3});expect(round.records.slice(1).every((r:any)=>r.category==='independent')).toBe(true);
- await page.getByRole('button',{name:'ดูรางวัลที่สะสม',exact:true}).click();await expect(page.locator('.trophy-card.earned')).toContainText('บทที่ '+id+': '+lesson.title);await expect(page.locator('.reward-totals dd').nth(0)).toHaveText('1 / 20 ถ้วย');
+ await page.getByRole('button',{name:'ดูรางวัลที่สะสม',exact:true}).click();await expect(page.locator('.trophy-card.earned')).toContainText('บทที่ '+id+': '+lesson.title);await expect(page.locator('.reward-totals dd').nth(0)).toHaveText('1 / 30 ถ้วย');
 });

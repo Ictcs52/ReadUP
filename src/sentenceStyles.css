@@ -1,0 +1,24 @@
+.sentence-workbench { display:flex; flex-direction:column; gap:1rem; }
+.sentence-workbench .question-visual { min-height:0; }
+.sentence-visual { width:100%; display:flex; flex-direction:column; align-items:center; gap:.8rem; }
+.sentence-art { width:120px; height:110px; }
+.reading-passage { width:100%; padding:1.1rem 1.25rem; border:2px solid #d2e9df; border-radius:22px; background:#f2fbf6; }
+.reading-passage p { margin:0; font-size:clamp(1.5rem,3vw,2rem); line-height:1.8; color:#263c38; overflow-wrap:anywhere; }
+.reading-chunks { display:flex; flex-wrap:wrap; justify-content:center; gap:.35rem .7rem; }
+.reading-chunks span { border-bottom:3px solid #85baa4; padding:.1rem .4rem; }
+.reading-question { margin:0; font-size:1.3rem; line-height:1.6; color:#263c38; }
+.sentence-options { display:flex; flex-direction:column; gap:.65rem; width:100%; }
+.sentence-options .letter-option { font-size:1.35rem; line-height:1.6; min-height:60px; padding:.65rem 1rem; width:100%; white-space:normal; overflow-wrap:anywhere; }
+.learner-space .sentence-workbench .options .letter-option { font-size:1.35rem; line-height:1.6; min-height:60px; padding:.65rem 1rem; }
+.learner-space.large-text .sentence-workbench .options .letter-option { font-size:1.65rem; }
+.learner-space .sentence-workbench .question-visual { min-height:0; padding:0; margin:0; }
+.sentence-options .option-art { width:70px; height:60px; flex-shrink:0; }
+.sentence-options.picture-options .letter-option { display:flex; align-items:center; justify-content:center; gap:1rem; }
+.sentence-builder .built-word strong { font-size:1.65rem; line-height:1.7; overflow-wrap:anywhere; }
+.sentence-builder .build-choices { display:flex; flex-wrap:wrap; justify-content:center; }
+.sentence-builder .letter-option { font-size:1.25rem; line-height:1.6; min-width:60px; max-width:100%; padding:.65rem .9rem; white-space:normal; overflow-wrap:anywhere; }
+.learner-space .sentence-builder .build-choices .letter-option { font-size:1.25rem; }
+.learner-space.large-text .sentence-builder .build-choices .letter-option { font-size:1.5rem; }
+.large-text .reading-passage p { font-size:2.25rem; }
+.large-text .reading-question,.large-text .sentence-options .letter-option { font-size:1.65rem; }
+@media(max-width:600px) { .sentence-art { width:95px; height:85px; } .reading-passage { padding:.75rem; border-radius:16px; } .reading-question { font-size:1.15rem; } .sentence-builder .built-word strong { font-size:1.35rem; } .sentence-builder .order-actions { flex-wrap:wrap; } }
