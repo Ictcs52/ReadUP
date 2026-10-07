@@ -1,0 +1,197 @@
+/* A quiet, consistent reading space. Keep Thai words and their marks together. */
+.reading-instruction>span { display:block; }
+.app .teacher-area-tabs button.active { background:#eaf7ef; color:#17645b; border-color:#bfdccd; }
+.app .cloud-panel { border-color:#dfe5dc; box-shadow:0 3px 0 #e9ece4; }
+.app .teacher-account { background:#f3f8f2; border-color:#d5e5d8; }
+.app .teacher-account strong { color:#315e57; }
+.learner-space { --line:#e0e5df; }
+.learner-space .workspace { background:linear-gradient(155deg,#f7faf7,#fbfaf5); }
+.learner-space .sidebar { background:#fffefb; }
+.learner-space .topbar { background:#fffefb; }
+.learner-space .nav-item { border:1px solid transparent; }
+.learner-space .nav-item.active { border-color:#f1d5e1; }
+.learner-space .page-heading h1 { overflow-wrap:anywhere; }
+.learner-space .hero { min-height:340px; box-shadow:0 4px 0 #eee8df; }
+.learner-space .hero-copy { padding:26px 0 26px 30px; }
+.learner-space .hero h2 { font-size:clamp(32px,3vw,42px); letter-spacing:0; }
+.hero-next { display:block; color:#315e57; font-size:14px; margin-top:14px; line-height:1.7; }
+.learner-space .hero-meta { margin-top:6px; }
+.learner-space .hero-friend { width:290px; }
+.learner-space .learning-rhythm { margin:20px 0 0; }
+.learner-space .stat { padding:18px; }
+.learner-space .lesson-symbol { width:76px; height:76px; flex-shrink:0; }
+.lesson-preview { width:72px; height:62px; }
+.learner-space .adventure-card { box-shadow:0 3px 0 var(--tile-line); }
+.learner-space .adventure-card h3 { font-size:19px; line-height:1.7; }
+.learner-space .adventure-card .lesson-action { min-height:52px; }
+.learner-space .review-letters { display:flex; flex-wrap:wrap; gap:8px; }
+.learner-space .review-letters>span { flex:1 1 auto; min-width:50px; width:auto; max-width:100%; font-size:28px; padding:9px; }
+.learner-space .level-tabs { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; padding-bottom:0; overflow:visible; }
+.learner-space .level-tabs button { min-width:0; min-height:74px; border-radius:18px; border:2px solid #e0e5df; background:#fffefb; padding:10px 6px; font-size:17px; }
+.learner-space .level-tabs button span { font-size:12px; margin-top:4px; color:#625363; }
+.learner-space .level-tabs button.selected { border-color:#9d174d; background:#fff0f5; color:#83133f; box-shadow:0 3px 0 #edceda; }
+.learner-space .level-panel { border:1px solid #e0e5df; background:#fffefb; border-radius:26px; padding:24px; }
+.level-progress { display:grid; grid-template-columns:auto minmax(80px,1fr) auto; gap:14px; align-items:center; padding:14px 16px; border-radius:16px; background:#edf7f1; color:#245e52; margin:0 0 20px; }
+.level-progress>span { display:flex; align-items:center; gap:6px; font-size:14px; }
+.level-progress>div { height:8px; background:#d3e5da; border-radius:8px; overflow:hidden; }
+.level-progress>div>span { display:block; height:100%; border-radius:8px; background:#237d6a; }
+.level-progress small { font-size:12px; color:#315e57; }
+.learner-space .focused { background:#f4f7f3; }
+.learner-space .exercise-wrap { max-width:850px; }
+.learner-space .exercise-card { padding:22px 28px; box-shadow:0 4px 0 #e2eadd; }
+.learner-space .exercise-support { max-width:520px; }
+.learner-space .exercise-support button { min-height:54px; }
+.activity-workbench { margin-top:12px; }
+.learner-space .activity-workbench .question-visual { margin-top:0; }
+.reading-workbench { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:'picture choices' 'hint hint'; align-items:center; gap:14px 24px; }
+.learner-space .reading-workbench .question-visual { grid-area:picture; width:100%; min-height:235px; margin:0; }
+.learner-space .reading-workbench .question-art { width:100%; max-width:265px; height:auto; }
+.learner-space .reading-workbench .reading-options { grid-area:choices; width:100%; max-width:none; grid-template-columns:minmax(0,1fr); gap:12px; margin:0; }
+.learner-space .reading-workbench .letter-option { min-height:76px; font-size:40px; padding:6px 14px; }
+.learner-space .reading-workbench .hint-box { grid-area:hint; margin:0; text-align:center; }
+.learner-space .feedback { font-size:15px; margin-top:14px; min-height:36px; }
+.learner-space .exercise-response { max-width:520px; padding-top:12px; margin-top:8px; }
+.learner-space .exercise-response button { min-height:54px; }
+.learner-space .word-builder { gap:12px; }
+.learner-space .built-word { padding:9px 12px; }
+.learner-space .built-word strong { line-height:1.5; }
+.learner-space .word-builder fieldset { padding:8px; }
+.learner-space .reward-banner { border:1px solid #e8dcc2; background:linear-gradient(110deg,#fff6de,#f0f8ee); }
+.learner-space .reward-banner h2 { color:#4e4c36; }
+.learner-space .trophy-card { border-radius:18px; border-color:#e0e5df; background:#fffefb; }
+.learner-space .trophy-card.earned { border-color:#bfdccd; background:#eef8f1; }
+.trophy-level { margin-top:24px; }
+.trophy-level-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.trophy-level-heading h3 { font-size:18px; color:#315e57; }
+.trophy-level-heading span { font-size:13px; color:#625363; }
+.learner-space .trophy-card h4 { font-size:16px; font-weight:600; line-height:1.7; }
+.learner-space .trophy-card>svg { flex-shrink:0; }
+.learner-space .result-card { border:2px solid #d9e6db; box-shadow:0 4px 0 #e2eadd; }
+.public-shell .login-card { border:1px solid #eed9e2; box-shadow:0 12px 40px #4b323b0a; }
+.public-shell .login-intro h2 { letter-spacing:0; }
+@media(min-width:800px) {
+ .learner-space .word-builder { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .word-builder .built-word,.word-builder .check-word,.word-builder .order-actions,.word-builder fieldset:only-of-type { grid-column:1/-1; }
+}
+@media(max-width:1000px) {
+ .level-progress { grid-template-columns:auto minmax(80px,1fr); }
+ .level-progress small { grid-column:1/-1; }
+}
+@media(max-width:650px) {
+ .learner-space main { padding:22px 16px 28px; }
+ .learner-space .page-heading { margin-bottom:18px; }
+ .learner-space .page-heading h1 { font-size:25px; }
+ .learner-space .page-heading p { font-size:14px; }
+ .learner-space .hero { display:block; min-height:0; border-radius:26px; }
+ .learner-space .hero-copy { padding:22px; width:100%; }
+ .learner-space .hero h2 { font-size:30px; line-height:1.45; }
+ .learner-space.large-text .hero h2 { font-size:33px; }
+ .learner-space .hero-tag { max-width:calc(100% - 74px); font-size:11px; padding:6px 8px; line-height:1.7; }
+ .learner-space .hero p { font-size:15px; margin:12px 0 16px; }
+ .learner-space .hero .primary { min-height:58px; width:100%; font-size:18px; border-radius:17px; }
+ .hero-next { font-size:13px; margin-top:12px; }
+ .learner-space .hero-art { position:absolute; right:10px; top:22px; width:76px; height:90px; min-height:0; }
+ .learner-space .hero-friend { width:76px; filter:none; }
+ .learner-space .art-orbit { width:82px; height:82px; border:0; }
+ .hero-art .art-letter,.hero-art .art-star,.hero-art .friend-caption { display:none; }
+ .learner-space .learning-rhythm { gap:7px; margin:18px 0 0; }
+ .learner-space .learning-rhythm span { gap:4px; font-size:12px; }
+ .learner-space .learning-rhythm svg { width:18px; }
+ .learner-space .new-lesson-link { margin:16px 0; padding:12px; }
+ .learner-space .stats-grid { gap:8px; margin:18px 0 24px; }
+ .learner-space .stat { padding:12px 5px; border-radius:18px; box-shadow:none; }
+ .learner-space .stat-icon { width:34px; height:34px; margin-bottom:7px; border-radius:12px; }
+ .learner-space .stat-icon svg { width:19px; }
+ .learner-space .stat-number { font-size:24px; }
+ .learner-space .stat-label { font-size:12px; line-height:1.6; }
+ .learner-space .home-columns { gap:22px; }
+ .learner-space .adventure-card { display:grid; grid-template-columns:64px minmax(0,1fr); gap:8px 12px; padding:15px; border-radius:21px; }
+ .learner-space .lesson-symbol { width:64px; height:64px; grid-row:1; }
+ .lesson-preview { width:60px; height:54px; }
+ .learner-space .lesson-card-copy { min-width:0; }
+ .learner-space .adventure-card h3 { font-size:18px; }
+ .learner-space .adventure-card p { font-size:13px; line-height:1.7; }
+ .learner-space .adventure-card .lesson-action { grid-column:1/-1; width:100%; margin-top:5px; min-height:48px; }
+ .learner-space .review-card { padding:20px; }
+ .learner-space .level-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin-bottom:18px; }
+ .learner-space .level-tabs button { min-height:68px; font-size:16px; padding:8px 4px; }
+ .learner-space .level-tabs button span { font-size:11px; }
+ .learner-space .level-panel { padding:16px 12px; border-radius:22px; }
+ .learner-space .level-panel .section-title { flex-wrap:wrap; gap:10px; }
+ .learner-space .level-panel .section-title h2 { font-size:23px; }
+ .level-progress { padding:12px; gap:8px 10px; margin-bottom:16px; }
+ .level-progress small { font-size:12px; }
+ .learner-space .focused .topbar { flex-wrap:nowrap; min-height:64px; padding:9px 12px; gap:6px; }
+ .focused .topbar-title .text-button { font-size:12px; gap:5px; padding:0; white-space:nowrap; }
+ .focused .topbar-title svg { width:18px; }
+ .focused .topbar-right { gap:0; }
+ .focused .learner-chip { display:none; }
+ .focused .topbar-actions { gap:6px; }
+ .focused .settings-button { width:44px; height:44px; }
+ .focused .topbar-logout { font-size:11px; padding:7px; gap:4px; }
+ .learner-space .focused main { padding:16px 12px 24px; }
+ .learner-space .exercise-heading h1 { font-size:22px; line-height:1.6; }
+ .learner-space .exercise-heading { gap:8px; }
+ .learner-space .exercise-heading .eyebrow { font-size:11px; }
+ .learner-space .progress-track { height:7px; margin:10px 0; }
+ .learner-space .question-steps { gap:10px; margin-bottom:12px; }
+ .learner-space .question-steps>span { width:28px; height:28px; font-size:13px; }
+ .learner-space .exercise-card { padding:16px 12px; border-radius:24px; }
+ .learner-space .instruction { font-size:21px; line-height:1.65; }
+ .learner-space.large-text .instruction { font-size:24px; }
+ .learner-space .exercise-support { margin-top:8px; gap:10px; }
+ .learner-space .exercise-support button { min-height:50px; padding:8px 6px; font-size:18px; }
+ .learner-space .exercise-audio-status { margin:5px 0 8px; font-size:12px; }
+ .activity-workbench { margin-top:8px; }
+ .learner-space .activity-workbench .question-visual { min-height:145px; margin-bottom:14px; gap:12px; padding:8px; border-radius:18px; }
+ .learner-space .question-art { width:155px; height:122px; }
+ .learner-space .target-letter { min-width:55px; font-size:80px; }
+ .learner-space .options { gap:9px; }
+ .learner-space .options .letter-option { min-height:78px; font-size:48px; padding:4px; border-radius:17px; }
+ .learner-space.large-text .options .letter-option { font-size:54px; }
+ .learner-space .options.blend-options .letter-option,.learner-space .options.vowel-options .letter-option { font-size:34px; }
+ .learner-space.large-text .options.blend-options .letter-option,.learner-space.large-text .options.vowel-options .letter-option { font-size:38px; }
+ .reading-workbench { grid-template-columns:minmax(0,.68fr) minmax(0,1.32fr); gap:12px; }
+ .learner-space .reading-workbench .question-visual { min-height:155px; margin:0; padding:4px; }
+ .learner-space .reading-workbench .question-art { width:100%; height:auto; }
+ .learner-space .reading-workbench .reading-options { gap:10px; }
+ .learner-space .reading-workbench .reading-options .letter-option { min-height:60px; font-size:32px; padding:6px 4px; }
+ .learner-space.large-text .reading-workbench .reading-options .letter-option { font-size:36px; }
+ .learner-space .reading-workbench .hint-box { padding:10px; margin:0; }
+ .learner-space .hint-box p { font-size:16px; line-height:1.8; }
+ .learner-space.large-text .hint-box p { font-size:18px; }
+ .learner-space .word-builder { margin-top:12px; gap:10px; }
+ .learner-space .built-word strong { font-size:40px; }
+ .learner-space .built-word small,.learner-space .built-word span { font-size:13px; }
+ .learner-space .word-builder legend { font-size:14px; }
+ .learner-space .build-choices .letter-option { min-height:60px; font-size:32px; }
+ .learner-space.large-text .build-choices .letter-option { font-size:36px; }
+ .learner-space .feedback { font-size:14px; margin-top:12px; }
+ .learner-space .exercise-bottom-actions { margin-top:4px; gap:7px 14px; }
+ .learner-space .exercise-bottom-actions .text-button { min-height:44px; font-size:12px; }
+ .learner-space .exercise-footer { font-size:12px; margin-top:14px; }
+ .learner-space .reward-banner { flex-direction:row; gap:8px; padding:16px 12px; text-align:left; }
+ .learner-space .reward-banner svg { width:84px; }
+ .learner-space .reward-banner h2 { font-size:19px; line-height:1.7; }
+ .learner-space .reward-banner p { font-size:13px; }
+ .learner-space .trophy-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+ .learner-space .trophy-card { flex-direction:column; align-items:flex-start; padding:14px 10px; gap:8px; }
+ .learner-space .trophy-card>svg { width:28px; height:28px; }
+ .learner-space .trophy-card h4 { font-size:14px; }
+ .learner-space .trophy-card span { font-size:12px; line-height:1.7; }
+ .learner-space .result-card { padding:26px 18px; }
+ .public-shell .login-layout { gap:18px; padding:12px 16px 28px; }
+ .public-shell .login-intro h2 { font-size:28px; line-height:1.5; }
+ .public-shell .login-card { padding:24px 20px; border-radius:24px; }
+}
+@media(max-width:360px) {
+ .learner-space .hero-copy { padding:18px; }
+ .learner-space .hero h2 { font-size:27px; }
+ .learner-space.large-text .hero h2 { font-size:29px; }
+ .learner-space .hero-art { right:6px; width:64px; }
+ .learner-space .hero-friend { width:64px; }
+ .learner-space .art-orbit { width:68px; height:68px; }
+ .learner-space .hero-tag { max-width:calc(100% - 60px); }
+ .learner-space .level-progress { grid-template-columns:1fr; }
+ .learner-space .level-panel .section-title h2 { font-size:21px; }
+}

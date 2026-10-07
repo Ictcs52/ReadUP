@@ -17,7 +17,8 @@ export function BookFriend({ className = '' }: { className?: string }) {
   </svg>;
 }
 
-export function Illustration({ kind, label, className = '' }: { kind: string; label: string; className?: string }) {
+const readingFrames:Record<string,string>={cat:'55 30 210 195',fish:'20 25 265 195',house:'40 22 240 210',rice:'58 55 206 170',banana:'58 48 225 177',chicken:'40 15 242 215',horse:'90 25 165 200',snake:'23 35 267 184',boat:'33 30 247 207',cup:'68 68 218 158',spoon:'106 12 108 218',table:'27 72 266 158',egg:'80 25 160 202',mother:'65 15 190 220',father:'65 15 190 220'};
+export function Illustration({ kind, label, className = '', framed = false }: { kind: string; label: string; className?: string; framed?: boolean }) {
   let art;
   switch (kind) {
     case 'cup': art = <>
@@ -174,5 +175,5 @@ export function Illustration({ kind, label, className = '' }: { kind: string; la
       <circle cx="162" cy="151" r="5" fill="#496e5c" /><circle cx="188" cy="128" r="5" fill="#496e5c" />
     </>;
   }
-  return <svg className={className} viewBox="0 0 320 250" role="img" aria-label={label}><title>{label}</title>{art}</svg>;
+  return <svg className={className} viewBox={framed?readingFrames[kind]??'0 0 320 250':'0 0 320 250'} role="img" aria-label={label}><title>{label}</title>{art}</svg>;
 }
