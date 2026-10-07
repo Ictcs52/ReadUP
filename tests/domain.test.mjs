@@ -5,12 +5,12 @@ import { resultCategory, summarize, percent, orderedOptions, csvCell, exportCsv,
 
 const curriculum = JSON.parse(fs.readFileSync(new URL('../src/data/lessons.json', import.meta.url),'utf8'));
 
-test('curriculum has exactly 30 planned lessons, with 6 playable lessons and 30 valid questions', () => {
+test('curriculum has exactly 30 planned lessons, with 7 playable lessons and 35 valid questions', () => {
   assert.equal(curriculum.levels.length,6);
   assert.equal(curriculum.levels.flatMap(l=>l.lessons).length,30);
-  assert.equal(curriculum.lessons.length,6);
-  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,30);
-  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6]);
+  assert.equal(curriculum.lessons.length,7);
+  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,35);
+  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7]);
   for(const l of curriculum.lessons) assert.equal(l.title,curriculum.levels[Math.ceil(l.id/5)-1].lessons[(l.id-1)%5]);
   for (const l of curriculum.lessons) for (const q of l.questions) {
     assert.ok(q.options.includes(q.letter));
@@ -30,6 +30,12 @@ test('first-time success with a hint is assisted, never independent',()=>{
   assert.equal(resultCategory(1,0),'retried');
   assert.equal(resultCategory(0,1),'assisted');
   assert.equal(resultCategory(3,3),'assisted');
+});
+test('consonants and the three long vowels form each model and target without moving Thai combining marks',()=>{
+  const lesson=curriculum.lessons.find(l=>l.id===7);
+  assert.equal(lesson.mode,'blend');assert.deepEqual(lesson.questions.map(q=>q.blend.model),[true,true,true,false,false]);
+  assert.deepEqual(lesson.questions.map(q=>q.word),['ตา','ปู','สี','กา','งู']);
+  for(const q of lesson.questions){assert.equal(q.blend.consonant+q.blend.vowel,q.word);assert.equal(q.letter,q.word);assert.ok(['า','ี','ู'].includes(q.blend.vowel));assert.deepEqual(q.options.map(word=>word[0]),Array(3).fill(q.blend.consonant));assert.equal(q.options.length,3);assert.ok(q.speech);}
 });
 test('summary keeps independent, retry, assisted and skipped separate',()=>{
   const records = [...Array(7).fill({category:'independent'}),...Array(2).fill({category:'assisted'}),{category:'skipped'}];

@@ -20,6 +20,25 @@ export function BookFriend({ className = '' }: { className?: string }) {
 export function Illustration({ kind, label, className = '' }: { kind: string; label: string; className?: string }) {
   let art;
   switch (kind) {
+    case 'crow': art = <>
+      <path d="m134 188-5 29m48-29 7 29m-72 2h29m30 0h30" stroke="#8b624d" strokeWidth="5" strokeLinecap="round"/>
+      <path d="m189 145 65-35-17 66-35 10" fill="#665b7d" stroke="#423544" strokeWidth="4" strokeLinejoin="round"/>
+      <ellipse cx="151" cy="149" rx="65" ry="53" fill="#665b7d" stroke="#423544" strokeWidth="4"/>
+      <circle cx="113" cy="95" r="40" fill="#665b7d" stroke="#423544" strokeWidth="4"/>
+      <path d="m77 90-32 16 32 12" fill="#efc471" stroke="#8b624d" strokeWidth="3" strokeLinejoin="round"/>
+      <circle cx="103" cy="89" r="10" fill="#fffdf7"/><circle cx="102" cy="89" r="5" fill="#423544"/>
+      <path d="M135 135q58-17 50 23-4 30-51 12" fill="#817499" stroke="#423544" strokeWidth="3"/>
+    </>; break;
+    case 'snake': art = <>
+      <path d="M71 201h145q46-1 23-34-24-30-69-17-37 11-31 43" fill="none" stroke="#49715e" strokeWidth="38" strokeLinecap="round"/>
+      <path d="M71 201h145q46-1 23-34-24-30-69-17-37 11-31 43" fill="none" stroke="#a2ccb1" strokeWidth="30" strokeLinecap="round"/>
+      <path d="M154 161q13-31 7-71" fill="none" stroke="#49715e" strokeWidth="35" strokeLinecap="round"/>
+      <path d="M154 161q13-31 7-71" fill="none" stroke="#a2ccb1" strokeWidth="27" strokeLinecap="round"/>
+      <ellipse cx="159" cy="72" rx="40" ry="30" fill="#a2ccb1" stroke="#49715e" strokeWidth="4"/>
+      <circle cx="145" cy="67" r="6" fill="#423544"/><circle cx="176" cy="67" r="6" fill="#423544"/>
+      <path d="M146 84q14 12 27 0" stroke="#49715e" strokeWidth="4" fill="none" strokeLinecap="round"/>
+      <path d="m158 113 9 7m-21 18 9 7m45 20 9 7m-42 19 9 7" stroke="#729a70" strokeWidth="5" strokeLinecap="round"/>
+    </>; break;
     case 'eye': art = <>
       <path d="M40 123q120-119 240 0-120 119-240 0Z" fill="#fffdf7" stroke="#665171" strokeWidth="5"/>
       <circle cx="160" cy="123" r="45" fill="#a3d3c2" stroke="#496e5c" strokeWidth="4"/>

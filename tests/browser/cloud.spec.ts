@@ -821,6 +821,14 @@ test.describe('reading progress in a Thai calendar',()=>{
  });
 });
 
+test('a learner saves a completed blending round and the teacher sees words without duplicate letter labels',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);await studentLogin(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก พยัญชนะกับสระ',exact:true}).click();
+ const words=['ตา','ปู','สี','กา','งู'];for(const [i,word]of words.entries()){await page.getByRole('button',{name:`เลือก ${word}`,exact:true}).click();await page.getByRole('button',{name:i===4?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();}
+ await expect.poll(()=>[...backend.sessions.values()].some(s=>s.payload.lessonId===7&&s.payload.status==='complete')).toBe(true);const row=[...backend.sessions.values()].find(s=>s.payload.lessonId===7)!;expect(row.student_id).toBe(first);expect(row.payload.records.map((r:any)=>r.word)).toEqual(words);
+ await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();await studentLogin(page,'9876543210');await page.getByRole('button',{name:'รางวัลของฉัน',exact:true}).click();await expect(page.locator('.trophy-card.earned')).toHaveCount(0);
+ await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();await login(page);await selectFirst(page);await expect(page.locator('.report-table-wrap')).toContainText('พยัญชนะกับสระ');await page.getByRole('button',{name:'ดูผล',exact:true}).click();await expect(page.locator('.word-results strong')).toHaveText(words);
+});
+
 test('level-two vowel results resume on a second device, award their own trophy and remain private',async({page,context,browser})=>{
  const backend=mockBackend();await backend.install(context);await studentLogin(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก รู้จักสระชุดแรก',exact:true}).click();await page.getByRole('button',{name:'ช่วยทีละนิด',exact:true}).click();await page.getByRole('button',{name:'เลือกสระ อา',exact:true}).click();
  await expect.poll(()=>[...backend.sessions.values()].some(s=>s.payload.lessonId===6&&s.payload.records.length===1)).toBe(true);

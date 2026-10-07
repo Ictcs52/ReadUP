@@ -49,6 +49,13 @@
       {"letter":"ู","word":"ปู","speech":"สระ อู ปู","art":"crab","options":["า","ี","ู"],"prompt":"เลือกสระที่เหมือนตัวอย่าง","vowelExample":true,"vowelClue":"ดูสระด้านล่างของ ป ในคำว่า ปู"},
       {"letter":"า","word":"ปลา","speech":"ปลา ใช้สระ อา","art":"fish","options":["า","ี","ู"],"prompt":"คำว่า ปลา ใช้สระอะไร?","vowelExample":false,"vowelClue":"ดูสระด้านขวาของ ล ในคำว่า ปลา"},
       {"letter":"ี","word":"หมี","speech":"หมี ใช้สระ อี","art":"bear","options":["า","ี","ู"],"prompt":"คำว่า หมี ใช้สระอะไร?","vowelExample":false,"vowelClue":"ดูสระด้านบนของ ม ในคำว่า หมี"}
+    ]},
+    {"id":7,"title":"พยัญชนะกับสระ","description":"นำพยัญชนะกับสระ อา อี อู มาประสมเป็นคำ","mode":"blend","questions":[
+      {"letter":"ตา","word":"ตา","speech":"ตอ อา ตา","art":"eye","options":["ตา","ตี","ตู"],"prompt":"ประสมแล้ว เลือกคำที่ตรงกัน","blend":{"consonant":"ต","vowel":"า","model":true}},
+      {"letter":"ปู","word":"ปู","speech":"ปอ อู ปู","art":"crab","options":["ปู","ปา","ปี"],"prompt":"ประสมแล้ว เลือกคำที่ตรงกัน","blend":{"consonant":"ป","vowel":"ู","model":true}},
+      {"letter":"สี","word":"สี","speech":"สอ อี สี","art":"paint","options":["สี","สา","สู"],"prompt":"ประสมแล้ว เลือกคำที่ตรงกัน","blend":{"consonant":"ส","vowel":"ี","model":true}},
+      {"letter":"กา","word":"กา","speech":"กอ อา กา","art":"crow","options":["กา","กี","กู"],"prompt":"ก กับสระ อา ประสมเป็นคำใด?","blend":{"consonant":"ก","vowel":"า","model":false}},
+      {"letter":"งู","word":"งู","speech":"งอ อู งู","art":"snake","options":["งู","งา","งี"],"prompt":"ง กับสระ อู ประสมเป็นคำใด?","blend":{"consonant":"ง","vowel":"ู","model":false}}
     ]}
   ]
 }

@@ -1,4 +1,17 @@
 /* Friendly, quiet surfaces for existing learner activities. */
+.blend-visual { width:100%; padding:10px 12px 18px; }
+.learner-space .blend-visual .question-art { display:block; width:180px; height:135px; margin:0 auto 12px; }
+.blend-parts { display:grid; grid-template-columns:minmax(0,1fr) 15px minmax(0,1fr) 15px minmax(0,1fr); align-items:center; gap:8px; max-width:500px; margin:0 auto; }
+.blend-parts>div { display:grid; gap:7px; padding:10px 4px; background:white; border:2px solid #dce4da; border-radius:16px; }
+.blend-parts small { font-size:13px; color:#625363; }
+.blend-parts strong { font-size:43px; color:#34344e; font-weight:600; line-height:1.8; }
+.blend-parts>span { font-size:22px; color:#625363; }
+.blend-parts .blend-word { background:#fff8e3; border-color:#e9d395; }
+.blend-parts .blend-word.revealed { background:#eaf7ef; border-color:#badbca; }
+.blend-parts .blend-word strong { color:#17645b; }
+.learner-space .blend-options .letter-option { font-size:43px; }
+.adventure-card.adventure-7 { --tile:#edf1ff; --tile-line:#d0d9ef; --tile-ink:#455b8a; }
+@media(max-width:650px) { .blend-visual { padding:8px 4px 15px; }.learner-space .blend-visual .question-art { width:145px; height:115px; }.blend-parts { gap:4px; grid-template-columns:minmax(0,1fr) 12px minmax(0,1fr) 12px minmax(0,1fr); }.blend-parts small { font-size:11px; }.blend-parts strong { font-size:35px; }.blend-parts>span { font-size:18px; }.learner-space .blend-options .letter-option { font-size:36px; }.learner-space.large-text .blend-options .letter-option { font-size:40px; }.large-text .blend-parts strong { font-size:39px; } }
 .vowel-visual { display:flex; align-items:center; justify-content:center; gap:28px; width:100%; min-width:0; }
 .vowel-visual figure { margin:0; text-align:center; }
 .vowel-visual figcaption { font-size:40px; font-weight:600; color:#34344e; line-height:1.7; }
