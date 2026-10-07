@@ -1,4 +1,7 @@
 /* Friendly, quiet surfaces for existing learner activities. */
+.exercise-toolbar.exercise-support { margin:8px auto 0; padding-top:0; border-top:0; }
+.exercise-support + .exercise-audio-status { margin:7px auto 14px; }
+.exercise-toolbar.exercise-response { grid-template-columns:minmax(0,1fr); }
 .word-builder { margin-top:20px; display:grid; gap:18px; }
 .built-word { display:grid; gap:3px; padding:12px; border:2px solid #badbca; border-radius:20px; background:#eaf7ef; color:#17645b; }
 .built-word small,.built-word span { font-size:14px; }

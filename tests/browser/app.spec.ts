@@ -102,6 +102,8 @@ test('all eleven lessons are usable, including tap-to-match, vowels, blending an
     await page.getByRole('button',{name:'บทเรียนของฉัน',exact:true}).click();
     await page.getByRole('tab',{name:`LEVEL ${Math.ceil(lesson.id/5)} พร้อมฝึก`,exact:true}).click();
     await page.getByRole('button',{name:`เริ่มฝึก ${lesson.title}`,exact:true}).click();
+    const support=page.locator('.exercise-support');await expect(support.getByRole('button',{name:'ช่วยทีละนิด',exact:true})).toBeVisible();await expect(support.locator('.audio-button')).toBeVisible();
+    expect((await support.boundingBox())!.y+(await support.boundingBox())!.height).toBeLessThanOrEqual((await page.locator('.question-visual').boundingBox())!.y);
     await answerAll(page,lesson.id);
     await expect(page.getByRole('heading',{name:'ทำกิจกรรมครบแล้ว!'})).toBeVisible();
     await page.getByRole('button',{name:'กลับหน้าหลัก',exact:true}).click();
@@ -160,13 +162,13 @@ test('pause is keyboard dismissible and paused time is not counted',async({page}
 
 test('exercise controls offer retry only after a wrong answer and returning home preserves progress and credit',async({page})=>{
   await home(page);await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
-  const controls=page.getByRole('group',{name:'ปุ่มควบคุมแบบฝึก',exact:true});
+  const controls=page.locator('.exercise-card');
   await expect(controls.getByRole('button',{name:'ฟังตัวอย่าง',exact:true})).toBeVisible();await expect(controls.getByRole('button',{name:'ช่วยทีละนิด',exact:true})).toBeVisible();
   await expect(controls.getByRole('button',{name:'ลองใหม่',exact:true})).toHaveCount(0);await expect(controls.getByRole('button',{name:'ข้อต่อไป',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'เลือก ม',exact:true}).click();await controls.getByRole('button',{name:'ลองใหม่',exact:true}).click();
   await expect(page.getByRole('button',{name:'เลือก ม',exact:true})).toHaveAttribute('aria-pressed','false');await expect(controls.getByRole('button',{name:'ลองใหม่',exact:true})).toHaveCount(0);
   await expect.poll(async()=>(await snapshot(page)).sessions[0].wrongAttempts).toBe(1);expect((await snapshot(page)).sessions[0].records).toHaveLength(0);
-  await page.getByRole('button',{name:'เลือก ก',exact:true}).click();await expect(controls.getByRole('button',{name:'ข้อต่อไป',exact:true})).toBeFocused();await expect(controls.getByRole('button',{name:'ช่วยทีละนิด',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'เลือก ก',exact:true}).click();await expect(controls.getByRole('button',{name:'ข้อต่อไป',exact:true})).toBeFocused();await expect(controls.getByRole('button',{name:'ช่วยทีละนิด',exact:true})).toBeDisabled();
   const before=(await snapshot(page)).sessions[0];expect(before.records).toHaveLength(1);expect(before.records[0].category).toBe('retried');expect(before.records[0].wrongAttempts).toBe(1);
   await page.getByRole('button',{name:'กลับหน้าแรก',exact:true}).click();await expect(page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();await expect(page.getByRole('button',{name:'เลือก ก',exact:true})).toBeDisabled();

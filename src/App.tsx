@@ -309,6 +309,11 @@ export default function App() {
           <div className="question-steps" aria-hidden="true">{current.questionIndices.map((_,i)=><span key={i} className={i<current.index || (i===current.index&&current.answered)?'step-done':i===current.index?'step-now':''}>{i<current.index || (i===current.index&&current.answered)?<Icon name="check" size={18}/>:i+1}</span>)}</div>
           <section className="exercise-card">
             <h2 className="instruction">{question.prompt ?? (lesson.mode === 'listen' ? 'ฟัง แล้วแตะตัวอักษร' : lesson.mode === 'initial' ? 'ภาพนี้ขึ้นต้นด้วยตัวอะไร?' : lesson.mode === 'match' ? 'แตะตัวอักษร แล้วแตะช่องจับคู่' : 'เลือกตัวอักษรที่เหมือนตัวอย่าง')}</h2>
+            <div className="exercise-toolbar exercise-support" role="group" aria-label="ฟังและขอความช่วยเหลือ">
+              <button className="audio-button" aria-label={question.promptSpeech?'ฟังคำถาม':lesson.mode==='initial'?'ฟังชื่อภาพ':'ฟังตัวอย่าง'} disabled={!data.settings.sound} onClick={()=>playLessonAudio(question.promptSpeech ?? question.speech,data.settings,setAudioMessage)}><Icon name="sound"/><span>ฟัง</span></button>
+              <button className="secondary" aria-label={current.hintLevel===3?'ดูตัวอย่างอีกครั้ง':'ช่วยทีละนิด'} disabled={current.answered} onClick={help}><Icon name="help"/><span>{current.hintLevel===3?'ดูตัวอย่าง':'ช่วย'}</span></button>
+            </div>
+            <span className="audio-status exercise-audio-status" role="status">{!data.settings.sound?'ปิดเสียงอยู่ เปิดได้ในหน้าปรับการใช้งาน':audioMessage || 'ฟังซ้ำได้ตามต้องการ'}</span>
             <div className={'question-visual ' + (lesson.mode==='shape'?'shape-only':'')}>
               {(lesson.mode==='blend'||lesson.mode==='change-vowel') ? <BlendVisual question={question} revealed={current.hintLevel===3 || current.answered}/> : lesson.mode==='vowel' ? <VowelVisual question={question}/> : (lesson.mode==='listen'||lesson.mode==='listen-word') && current.hintLevel===0 ? <div className="listen-orb"><Icon name="sound" size={70}/><span>พร้อมแล้ว กดฟังเลย</span></div> : <>
                 {lesson.mode !== 'shape' && <Illustration kind={question.art} label={question.word} className="question-art"/>}
@@ -320,12 +325,10 @@ export default function App() {
             {(lesson.mode==='vowel' || lesson.mode==='blend' || lesson.mode==='change-vowel'||lesson.mode==='build-word') && <p className="vowel-carrier-note">ใช้ตัว อ รองสระ เพื่อให้เห็นตำแหน่งชัดเจน</p>}
             {lesson.mode==='match' && <button className={'match-slot ' + (current.answered?'matched':'')} disabled={!chosen || current.answered} onClick={()=>chosen && answer(chosen)} aria-label="วางตัวอักษรที่เลือกลงช่องจับคู่">{chosen ?? <Icon name="puzzle"/>}<span>{current.answered?'จับคู่แล้ว':'แตะที่นี่เพื่อจับคู่'}</span></button>}
             <div className="feedback-wrap">{celebrating && <AnswerStars/>}<div className={'feedback ' + (current.answered?'success':'')} role="status" aria-live="polite">{current.answered && <Icon name={current.records.at(-1)?.category==='skipped'?'leaf':'check'}/>}<span>{feedback || (current.answered ? current.records.at(-1)?.category==='skipped'?'เก็บข้อนี้ไว้ฝึกอีกครั้ง':'ทำกิจกรรมข้อนี้แล้ว ไปต่อได้เลย' : 'ลองด้วยตัวเอง หรือใช้ปุ่มช่วยได้')}</span></div></div>
-            <div className="exercise-toolbar" role="group" aria-label="ปุ่มควบคุมแบบฝึก">
-              <button className="audio-button" aria-label={question.promptSpeech?'ฟังคำถาม':lesson.mode==='initial'?'ฟังชื่อภาพ':'ฟังตัวอย่าง'} disabled={!data.settings.sound} onClick={()=>playLessonAudio(question.promptSpeech ?? question.speech,data.settings,setAudioMessage)}><Icon name="sound"/><span>ฟัง</span></button>
-              {current.answered ? <button ref={nextRef} className="primary next-button" aria-label={current.index+1===current.questionIndices.length?'ดูรางวัลของฉัน':'ข้อต่อไป'} onClick={next}><span>{current.index+1===current.questionIndices.length?'ดูรางวัล':'ต่อไป'}</span><Icon name="arrow"/></button> : <button className="secondary" aria-label={current.hintLevel===3?'ดูตัวอย่างอีกครั้ง':'ช่วยทีละนิด'} onClick={help}><Icon name="help"/><span>{current.hintLevel===3?'ดูตัวอย่าง':'ช่วย'}</span></button>}
+            {(current.answered || (current.wrongAttempts>0 && chosen!==null)) && <div className="exercise-toolbar exercise-response" role="group" aria-label="ปุ่มทำกิจกรรมต่อ">
+              {current.answered && <button ref={nextRef} className="primary next-button" aria-label={current.index+1===current.questionIndices.length?'ดูรางวัลของฉัน':'ข้อต่อไป'} onClick={next}><span>{current.index+1===current.questionIndices.length?'ดูรางวัล':'ต่อไป'}</span><Icon name="arrow"/></button>}
               {!current.answered && current.wrongAttempts>0 && chosen!==null && <button className="secondary retry-choice" onClick={retryChoice}><Icon name="replay"/><span>ลองใหม่</span></button>}
-            </div>
-            <span className="audio-status exercise-audio-status" role="status">{!data.settings.sound?'ปิดเสียงอยู่ เปิดได้ในหน้าปรับการใช้งาน':audioMessage || 'ฟังซ้ำได้ตามต้องการ'}</span>
+            </div>}
             <div className="exercise-bottom-actions">{!current.answered && <button className="text-button" onClick={skip}>ฝึกข้อนี้ภายหลัง</button>}<button className="text-button exercise-home" onClick={()=>go('home')}><Icon name="home" size={18}/><span>กลับหน้าแรก</span></button></div>
           </section>
           <p className="exercise-footer"><Icon name="heart" size={17}/>ไม่มีการจับเวลาแข่งขัน · พักได้ทุกเมื่อ</p>
