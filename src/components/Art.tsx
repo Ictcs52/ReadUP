@@ -20,6 +20,38 @@ export function BookFriend({ className = '' }: { className?: string }) {
 export function Illustration({ kind, label, className = '' }: { kind: string; label: string; className?: string }) {
   let art;
   switch (kind) {
+    case 'eye': art = <>
+      <path d="M40 123q120-119 240 0-120 119-240 0Z" fill="#fffdf7" stroke="#665171" strokeWidth="5"/>
+      <circle cx="160" cy="123" r="45" fill="#a3d3c2" stroke="#496e5c" strokeWidth="4"/>
+      <circle cx="160" cy="123" r="24" fill="#423544"/><circle cx="171" cy="111" r="9" fill="white"/>
+      <path d="m91 77-8-14m51-3-3-16m57 16 3-16m43 33 8-14" stroke="#665171" strokeWidth="5" strokeLinecap="round"/>
+    </>; break;
+    case 'paint': art = <>
+      <path d="M62 135c-5-88 145-117 190-57 28 37-20 44-24 70-6 37-113 75-143 37Z" fill="#ffebbb" stroke="#8c6947" strokeWidth="4"/>
+      <circle cx="98" cy="117" r="17" fill="#e981a3"/><circle cx="144" cy="84" r="17" fill="#e7b14e"/>
+      <circle cx="198" cy="86" r="17" fill="#7bbda4"/><circle cx="217" cy="135" r="17" fill="#83b5dc"/>
+      <circle cx="147" cy="158" r="20" fill="#fffdf7" stroke="#8c6947" strokeWidth="4"/>
+      <path d="m213 195 36-70" stroke="#665171" strokeWidth="13" strokeLinecap="round"/>
+      <path d="m209 187-23 26q30 12 42-17Z" fill="#b88ec9" stroke="#665171" strokeWidth="3"/>
+    </>; break;
+    case 'crab': art = <>
+      <path d="m99 151-40 17-17-13m57 10-31 33-23-5m174-42 40 17 17-13m-57 10 31 33 23-5" fill="none" stroke="#aa5b51" strokeWidth="7" strokeLinecap="round"/>
+      <path d="M108 115 76 90m136 25 32-25" stroke="#aa5b51" strokeWidth="9" strokeLinecap="round"/>
+      <path d="M76 100q-48 8-35-44l19 27 22-29q20 35-6 46m168 0q48 8 35-44l-19 27-22-29q-20 35 6 46" fill="#efa78d" stroke="#aa5b51" strokeWidth="4" strokeLinejoin="round"/>
+      <ellipse cx="160" cy="148" rx="70" ry="48" fill="#efb092" stroke="#aa5b51" strokeWidth="4"/>
+      <path d="M128 110V90m64 20V90" stroke="#aa5b51" strokeWidth="8" strokeLinecap="round"/>
+      <circle cx="128" cy="85" r="12" fill="#fffdf7" stroke="#aa5b51" strokeWidth="3"/><circle cx="192" cy="85" r="12" fill="#fffdf7" stroke="#aa5b51" strokeWidth="3"/>
+      <circle cx="128" cy="86" r="5" fill="#423544"/><circle cx="192" cy="86" r="5" fill="#423544"/>
+      <path d="M144 157q16 19 32 0" fill="none" stroke="#aa5b51" strokeWidth="4" strokeLinecap="round"/>
+    </>; break;
+    case 'bear': art = <>
+      <circle cx="95" cy="70" r="31" fill="#d6ad87" stroke="#8b624d" strokeWidth="4"/><circle cx="225" cy="70" r="31" fill="#d6ad87" stroke="#8b624d" strokeWidth="4"/>
+      <circle cx="95" cy="70" r="17" fill="#f2d5b6"/><circle cx="225" cy="70" r="17" fill="#f2d5b6"/>
+      <ellipse cx="160" cy="136" rx="92" ry="85" fill="#d6ad87" stroke="#8b624d" strokeWidth="4"/>
+      <circle cx="125" cy="124" r="8" fill="#423544"/><circle cx="195" cy="124" r="8" fill="#423544"/>
+      <ellipse cx="160" cy="161" rx="41" ry="32" fill="#f7e5cc"/>
+      <path d="M147 145q13-9 26 0l-13 13Z" fill="#66493e"/><path d="M160 155v14m-20-3q20 20 40 0" fill="none" stroke="#66493e" strokeWidth="4" strokeLinecap="round"/>
+    </>; break;
     case 'fish': art = <>
       <path d="m204 104 60-36v115l-60-34" fill="#f59bbd" stroke="#874254" strokeWidth="4" strokeLinejoin="round" />
       <ellipse cx="140" cy="123" rx="86" ry="63" fill="#e6b45e" stroke="#874254" strokeWidth="4" />

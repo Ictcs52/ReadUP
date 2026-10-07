@@ -44,7 +44,7 @@ export function practiceRewards(sessions,lessons,now=Date.now()) {
     {id:'first',name:'ก้าวแรกของฉัน',detail:'ทำกิจกรรมได้อย่างน้อย 1 ข้อ',earned:answers>0},
     {id:'complete',name:'ตั้งใจจนจบ',detail:'ทำกิจกรรมครบทุกข้อในหนึ่งบท',earned:count>0},
     {id:'three',name:'นักฝึกตัวอักษร',detail:'ทำกิจกรรมครบ 3 บทเรียน',earned:count>=3},
-    {id:'five',name:'สะสมครบห้าบท',detail:'ทำกิจกรรมครบทั้ง 5 บทเรียน',earned:count>=5},
+    {id:'five',name:'สะสมครบห้าบท',detail:'ทำกิจกรรมครบ 5 บทเรียนที่ไม่ซ้ำกัน',earned:count>=5},
     {id:'repeat',name:'กลับมาลองอีกครั้ง',detail:'ทำบทเดิมครบทุกข้ออย่างน้อย 2 รอบ',earned:repeat},
   ];
   return {trophies,missions,coins:missions.filter(m=>m.earned).length,current,best,days:days.size,today:days.has(today),legacyDays,

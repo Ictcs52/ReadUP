@@ -117,5 +117,14 @@ test('student accounts restrict reads and writes to self and preserve teacher as
     assert.equal((await asUser(pupil,'select id from public.readtech_students')).rows.length,0);
     await assert.rejects(save(pupil,student,3,payload),e=>e.code==='42501');
     await assert.rejects(db.transaction(async tx=>{await tx.exec('set local role anon');return tx.query('select * from public.readtech_students');}),e=>e.code==='42501');
+    await db.query('update public.readtech_teachers set active=true where id=$1',[teacher]);
+    const curriculum=JSON.parse(await fs.readFile(new URL('../src/data/lessons.json',import.meta.url),'utf8'));
+    const vowelLesson=curriculum.lessons.find(l=>l.id===6);
+    const vowelRound={...payload,id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',lessonId:6,status:'complete',endedAt:5000,questionIndices:[0,1,2,3,4],index:4,answered:true,records:vowelLesson.questions.map((q,i)=>({questionIndex:i,letter:q.letter,word:q.word,category:'independent',wrongAttempts:0,hintLevel:0,activeMs:100}))};
+    assert.equal((await save(pupil,student,0,vowelRound)).rows[0].saved.revision,1);
+    const savedVowels=(await asUser(teacher,'select lesson_id,payload from public.readtech_sessions where lesson_id=6')).rows[0];
+    assert.equal(savedVowels.lesson_id,6);assert.deepEqual(savedVowels.payload.records.map(r=>r.letter),['า','ี','ู','า','ี']);
+    assert.equal((await asUser(peer,'select id from public.readtech_sessions where lesson_id=6')).rows.length,0);
+    await assert.rejects(save(teacher,student,0,{...vowelRound,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}),e=>e.code==='42501');
   } finally { await db.close(); }
 });

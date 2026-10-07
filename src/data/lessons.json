@@ -42,6 +42,13 @@
       {"letter":"ม","word":"ม้า","speech":"ม้า","art":"horse","options":["ม","ก","บ"]},
       {"letter":"ร","word":"เรือ","speech":"เรือ","art":"boat","options":["ร","ป","ก"]},
       {"letter":"บ","word":"ใบไม้","speech":"ใบไม้","art":"leaf","options":["บ","ม","ร"]}
+    ]},
+    {"id":6,"title":"รู้จักสระชุดแรก","description":"รู้จักสระ อา อี อู จากภาพและคำใกล้ตัว","mode":"vowel","questions":[
+      {"letter":"า","word":"ตา","speech":"สระ อา ตา","art":"eye","options":["า","ี","ู"],"prompt":"เลือกสระที่เหมือนตัวอย่าง","vowelExample":true,"vowelClue":"ดูสระด้านขวาของ ต ในคำว่า ตา"},
+      {"letter":"ี","word":"สี","speech":"สระ อี สี","art":"paint","options":["า","ี","ู"],"prompt":"เลือกสระที่เหมือนตัวอย่าง","vowelExample":true,"vowelClue":"ดูสระด้านบนของ ส ในคำว่า สี"},
+      {"letter":"ู","word":"ปู","speech":"สระ อู ปู","art":"crab","options":["า","ี","ู"],"prompt":"เลือกสระที่เหมือนตัวอย่าง","vowelExample":true,"vowelClue":"ดูสระด้านล่างของ ป ในคำว่า ปู"},
+      {"letter":"า","word":"ปลา","speech":"ปลา ใช้สระ อา","art":"fish","options":["า","ี","ู"],"prompt":"คำว่า ปลา ใช้สระอะไร?","vowelExample":false,"vowelClue":"ดูสระด้านขวาของ ล ในคำว่า ปลา"},
+      {"letter":"ี","word":"หมี","speech":"หมี ใช้สระ อี","art":"bear","options":["า","ี","ู"],"prompt":"คำว่า หมี ใช้สระอะไร?","vowelExample":false,"vowelClue":"ดูสระด้านบนของ ม ในคำว่า หมี"}
     ]}
   ]
 }

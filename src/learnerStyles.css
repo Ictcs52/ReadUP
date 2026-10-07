@@ -1,4 +1,19 @@
 /* Friendly, quiet surfaces for existing learner activities. */
+.vowel-visual { display:flex; align-items:center; justify-content:center; gap:28px; width:100%; min-width:0; }
+.vowel-visual figure { margin:0; text-align:center; }
+.vowel-visual figcaption { font-size:40px; font-weight:600; color:#34344e; line-height:1.7; }
+.vowel-visual .question-art { display:block; height:145px; width:180px; }
+.vowel-example { display:grid; justify-items:center; gap:8px; color:#9d174d; }
+.vowel-example .vowel-glyph { font-size:74px; font-weight:600; line-height:1.7; }
+.vowel-example>span:last-child { font-size:16px; }
+.learner-space .vowel-options .letter-option { font-size:46px; line-height:1.9; }
+.vowel-carrier-note { font-size:13px; line-height:1.8; color:#625363; margin:18px auto 0; }
+.planned-notice { margin-top:24px; }
+.new-lesson-link { margin:22px 0; display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px 20px; background:#edf7f1; border:2px solid #cde4d7; border-radius:20px; }
+.new-lesson-link strong { display:block; font-size:17px; color:#285449; }
+.new-lesson-link .eyebrow { color:#376557; }
+.adventure-card.adventure-6 { --tile:#e7f6f1; --tile-line:#c3e1d4; --tile-ink:#17645b; }
+@media(max-width:650px) { .vowel-visual { gap:14px; }.vowel-visual .question-art { width:136px; height:114px; }.vowel-visual figcaption { font-size:35px; }.vowel-example .vowel-glyph { font-size:56px; }.vowel-example>span:last-child { font-size:14px; }.learner-space .vowel-options .letter-option { font-size:36px; padding:5px 2px; }.learner-space.large-text .vowel-options .letter-option { font-size:40px; }.new-lesson-link { padding:14px; flex-wrap:wrap; }.new-lesson-link strong { font-size:16px; }.new-lesson-link .secondary { font-size:14px; padding:10px 14px; min-height:48px; } }
 .learner-space { --ink:#34344e; --teal:#17645b; background:#f8faf7; color:var(--ink); }
 .learner-space .workspace { background:radial-gradient(ellipse at 95% 8%,#e7f5ef 0,transparent 35%),#f8faf7; }
 .learner-space .sidebar { background:#fffefb; }

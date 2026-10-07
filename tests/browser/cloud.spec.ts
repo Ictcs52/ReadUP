@@ -821,6 +821,18 @@ test.describe('reading progress in a Thai calendar',()=>{
  });
 });
 
+test('level-two vowel results resume on a second device, award their own trophy and remain private',async({page,context,browser})=>{
+ const backend=mockBackend();await backend.install(context);await studentLogin(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก รู้จักสระชุดแรก',exact:true}).click();await page.getByRole('button',{name:'ช่วยทีละนิด',exact:true}).click();await page.getByRole('button',{name:'เลือกสระ อา',exact:true}).click();
+ await expect.poll(()=>[...backend.sessions.values()].some(s=>s.payload.lessonId===6&&s.payload.records.length===1)).toBe(true);
+ const device=await browser.newContext();try{await backend.install(device);const otherPage=await device.newPage();await studentLogin(otherPage);await otherPage.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();await expect(otherPage.getByRole('button',{name:'เลือกสระ อา',exact:true})).toBeDisabled();await otherPage.getByRole('button',{name:'ข้อต่อไป',exact:true}).click();
+ for(const [i,name]of ['อี','อู','อา','อี'].entries()){await otherPage.getByRole('button',{name:`เลือกสระ ${name}`,exact:true}).click();await otherPage.getByRole('button',{name:i===3?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();}
+ await expect.poll(()=>[...backend.sessions.values()].some(s=>s.payload.lessonId===6&&s.payload.status==='complete')).toBe(true);const round=[...backend.sessions.values()].find(s=>s.payload.lessonId===6)!;expect(round.student_id).toBe(first);expect(round.payload.records).toHaveLength(5);expect(round.payload.records[0].category).toBe('assisted');
+ await otherPage.getByRole('button',{name:'ดูรางวัลที่สะสม',exact:true}).click();await expect(otherPage.locator('.trophy-card.earned')).toHaveCount(1);await expect(otherPage.locator('.trophy-card.earned')).toContainText('บทที่ 6: รู้จักสระชุดแรก');
+ await otherPage.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();await studentLogin(otherPage,'9876543210');await otherPage.getByRole('button',{name:'รางวัลของฉัน',exact:true}).click();await expect(otherPage.locator('.trophy-card.earned')).toHaveCount(0);
+ await otherPage.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();await login(otherPage);await selectFirst(otherPage);await expect(otherPage.locator('.report-table-wrap')).toContainText('รู้จักสระชุดแรก');await otherPage.getByRole('button',{name:'ดูผล',exact:true}).click();await expect(otherPage.locator('.word-results')).toContainText('อู · ปู');await otherPage.getByRole('button',{name:'บทเรียนของฉัน',exact:true}).click();await otherPage.getByRole('tab',{name:'LEVEL 2 พร้อมฝึก',exact:true}).click();await expect(otherPage.getByRole('button',{name:'เริ่มฝึก รู้จักสระชุดแรก',exact:true})).toHaveCount(0);
+ }finally{await device.close();}
+});
+
 test('reward days and coins follow one learner across devices and do not leak into another account',async({page,context,browser})=>{
  const backend=mockBackend();await backend.install(context);await studentLogin(page);await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();await page.getByRole('button',{name:'ช่วยทีละนิด',exact:true}).click();await page.getByRole('button',{name:'เลือก ก',exact:true}).click();await expect(page.getByText('เก่งมาก! ใช้ตัวช่วยแล้วทำได้ ได้ 1 ดาว',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'นักอ่านหนึ่ง',exact:true}).click();await page.getByRole('button',{name:'ส่งผลตอนนี้',exact:true}).click();await expect.poll(()=>[...backend.sessions.values()][0]?.payload.records.length).toBe(1);expect(typeof [...backend.sessions.values()][0].payload.records[0].answeredAt).toBe('number');
