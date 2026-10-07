@@ -1,5 +1,5 @@
 export type Category = 'independent' | 'retried' | 'assisted' | 'skipped';
-export type Question = { letter: string; word: string; speech: string; art: string; options: string[]; prompt?: string; promptSpeech?: string; vowelExample?: boolean; vowelClue?: string; previousWord?: string; build?: { consonants: string[]; vowels: string[]; missing?: 'consonant' | 'vowel' }; blend?: { consonant: string; vowel: string; model: boolean } };
+export type Question = { letter: string; word: string; speech: string; art: string; options: string[]; prompt?: string; promptSpeech?: string; vowelExample?: boolean; vowelClue?: string; previousWord?: string; build?: { consonants: string[]; vowels: string[]; missing?: 'consonant' | 'vowel' | 'final'; baseWord?: string; finals?: string[] }; order?: string[]; blend?: { consonant: string; vowel: string; model: boolean } };
 export type Lesson = { id: number; title: string; description: string; mode: string; questions: Question[] };
 export type RecordResult = { questionIndex: number; letter: string; word: string; category: Category; wrongAttempts: number; hintLevel: number; activeMs: number; answeredAt?: number };
 export type Observation = { attention: string; reading: string; note: string };
@@ -8,7 +8,7 @@ export type Session = {
   status: 'active' | 'complete' | 'ended'; questionIndices: number[]; index: number;
   records: RecordResult[]; wrongAttempts: number; hintLevel: number; currentMs: number;
   answered: boolean; observation?: Observation; breakAcknowledgedMs?: number;
-  wordDraft?: { consonant: string; vowel: string };
+  wordDraft?: { consonant: string; vowel: string; final?: string }; wordOrder?: string[];
   contentVersion?: number; localRevision?: number; cloudRevision?: number;
   syncedLocalRevision?: number; syncConflict?: boolean;
 };

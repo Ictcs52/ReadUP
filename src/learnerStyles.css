@@ -1,4 +1,10 @@
 /* Friendly, quiet surfaces for existing learner activities. */
+.final-clue { display:grid; gap:5px; color:#34344e; padding:16px; }
+.final-clue span { font-size:16px; }.final-clue strong { font-size:48px; line-height:1.8; }.final-clue p { margin:0; font-size:16px; }
+.order-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.order-actions button { min-width:0; padding:10px 5px; }
+.adventure-card.adventure-13,.adventure-card.adventure-15 { --tile:#edf1ff; --tile-line:#d0d9ef; --tile-ink:#455b8a; }
+.adventure-card.adventure-14 { --tile:#fff4da; --tile-line:#e9d395; --tile-ink:#715611; }
 h1,h2,h3,.instruction,.hero h2 { letter-spacing:0; }
 .adventure-card.adventure-12 { --tile:#fff4da; --tile-line:#e9d395; --tile-ink:#715611; }
 .exercise-toolbar.exercise-support { margin:8px auto 0; padding-top:0; border-top:0; }

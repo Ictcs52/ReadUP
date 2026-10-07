@@ -150,6 +150,18 @@ test('student accounts restrict reads and writes to self and preserve teacher as
     await save(pupil,student,1,{...missingRound,status:'complete',endedAt:5000,index:4,answered:true,records:missing.questions.map((q,i)=>({questionIndex:i,letter:q.letter,word:q.word,category:'independent',wrongAttempts:0,hintLevel:0,activeMs:100}))});
     assert.deepEqual((await asUser(teacher,'select payload from public.readtech_sessions where lesson_id=12')).rows[0].payload.records.map(r=>r.word),missing.questions.map(q=>q.word));
     assert.equal((await asUser(peer,'select id from public.readtech_sessions where lesson_id=12')).rows.length,0);
+    for(const lessonId of [13,14,15]){
+      const lesson=curriculum.lessons.find(l=>l.id===lessonId);const id=lessonId+'131313-1313-4313-8313-131313131313';
+      const draft={...buildRound,id,lessonId,wordOrder:['ู'],wordDraft:{consonant:'',vowel:'',final:'น'}};
+      await save(pupil,student,0,draft);
+      const resumed=(await asUser(pupil,'select payload from public.readtech_sessions where lesson_id=$1',[lessonId])).rows[0].payload;
+      assert.deepEqual(resumed.wordOrder,['ู']);assert.equal(resumed.wordDraft.final,'น');
+      const completed={...draft,status:'complete',endedAt:5000,index:4,answered:true,records:lesson.questions.map((q,i)=>({questionIndex:i,letter:q.letter,word:q.word,category:'assisted',wrongAttempts:1,hintLevel:2,activeMs:100}))};
+      await save(pupil,student,1,completed);
+      assert.deepEqual((await asUser(teacher,'select payload from public.readtech_sessions where lesson_id=$1',[lessonId])).rows[0].payload.records.map(r=>r.word),lesson.questions.map(q=>q.word));
+      assert.equal((await asUser(peer,'select id from public.readtech_sessions where lesson_id=$1',[lessonId])).rows.length,0);
+      await assert.rejects(save(teacher,student,2,{...completed,wordOrder:[]}),e=>e.code==='42501');
+    }
     for(const lessonId of [9,10]){
       const lesson=curriculum.lessons.find(l=>l.id===lessonId);
       const id=lessonId===9?'99999999-9999-4999-8999-999999999999':'10101010-1010-4010-8010-101010101010';

@@ -5,12 +5,12 @@ import { resultCategory, summarize, percent, orderedOptions, csvCell, exportCsv,
 
 const curriculum = JSON.parse(fs.readFileSync(new URL('../src/data/lessons.json', import.meta.url),'utf8'));
 
-test('curriculum has exactly 30 planned lessons, with 12 playable lessons and 60 valid questions', () => {
+test('curriculum has exactly 30 planned lessons, with 15 playable lessons and 75 valid questions', () => {
   assert.equal(curriculum.levels.length,6);
   assert.equal(curriculum.levels.flatMap(l=>l.lessons).length,30);
-  assert.equal(curriculum.lessons.length,12);
-  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,60);
-  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7,8,9,10,11,12]);
+  assert.equal(curriculum.lessons.length,15);
+  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,75);
+  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]);
   for(const l of curriculum.lessons) assert.equal(l.title,curriculum.levels[Math.ceil(l.id/5)-1].lessons[(l.id-1)%5]);
   for (const l of curriculum.lessons) for (const q of l.questions) {
     assert.ok(q.options.includes(q.letter));
@@ -52,6 +52,20 @@ test('missing-part lesson locks one part and offers a valid completion without c
  const l=curriculum.lessons.find(l=>l.id===12);assert.equal(l.mode,'build-word');
  assert.deepEqual(l.questions.map(q=>q.build.missing),['vowel','vowel','consonant','vowel','consonant']);
  for(const q of l.questions){assert.equal(q.letter,q.word);assert.ok(q.build.consonants.includes(q.word[0]));assert.ok(q.build.vowels.includes(q.word[1]));assert.equal(q.build.missing==='vowel'?q.build.consonants.length:q.build.vowels.length,1);}
+});
+test('ordering uses consonant then long vowel, with each part offered once',()=>{
+ const l=curriculum.lessons.find(l=>l.id===13);assert.equal(l.mode,'order-word');
+ for(const q of l.questions){assert.equal(q.order.join(''),q.word);assert.equal(q.order.length,2);assert.equal(new Set(q.order).size,2);assert.ok(['า','ี','ู'].includes(q.order[1]));}
+});
+test('final consonant lesson keeps the base word fixed and introduces two choices before three',()=>{
+ const l=curriculum.lessons.find(l=>l.id===14);assert.deepEqual(l.questions.map(q=>q.word),['จาน','ชาม','ปาก','ดาว','ลูก']);
+ assert.deepEqual(l.questions.map(q=>q.build.finals.length),[2,2,3,3,3]);
+ for(const q of l.questions){assert.equal(q.build.missing,'final');assert.equal(q.build.baseWord,q.word.slice(0,-1));assert.ok(q.build.finals.includes(q.word.at(-1)));assert.equal(q.speech,q.word);}
+});
+test('review combines ordering, missing vowels, full building and final consonants',()=>{
+ const l=curriculum.lessons.find(l=>l.id===15);
+ assert.deepEqual(l.questions.map(q=>q.order?'order':q.build.missing??'build'),['order','vowel','build','final','order']);
+ for(const q of l.questions){assert.equal(q.letter,q.word);assert.equal(q.speech,q.word);}
 });
 test('first-time success with a hint is assisted, never independent',()=>{
   assert.equal(resultCategory(0,0),'independent');

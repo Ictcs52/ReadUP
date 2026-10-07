@@ -91,6 +91,27 @@
       {"letter":"สี","word":"สี","speech":"สี","art":"paint","options":["สี","มี","ปี"],"prompt":"เติมพยัญชนะที่หาย ให้เป็นคำจากภาพ","build":{"missing":"consonant","consonants":["ส","ม","ป"],"vowels":["ี"]}},
       {"letter":"กา","word":"กา","speech":"กา","art":"crow","options":["กา","กี","กู"],"prompt":"เติมสระที่หาย ให้เป็นคำจากภาพ","build":{"missing":"vowel","consonants":["ก"],"vowels":["า","ี","ู"]}},
       {"letter":"งู","word":"งู","speech":"งู","art":"snake","options":["งู","ปู","ดู"],"prompt":"เติมพยัญชนะที่หาย ให้เป็นคำจากภาพ","build":{"missing":"consonant","consonants":["ง","ป","ด"],"vowels":["ู"]}}
+    ]},
+    {"id":13,"title":"เรียงรูปคำ","description":"แตะส่วนของคำตามลำดับ แล้วตรวจคำที่เรียง","mode":"order-word","questions":[
+      {"letter":"ตา","word":"ตา","speech":"ตา","art":"eye","options":["ตา","ตี","ตู"],"prompt":"เรียงพยัญชนะก่อน แล้วตามด้วยสระ","order":["ต","า"]},
+      {"letter":"ปู","word":"ปู","speech":"ปู","art":"crab","options":["ปู","ปา","ปี"],"prompt":"เรียงพยัญชนะก่อน แล้วตามด้วยสระ","order":["ป","ู"]},
+      {"letter":"สี","word":"สี","speech":"สี","art":"paint","options":["สี","สา","สู"],"prompt":"เรียงพยัญชนะก่อน แล้วตามด้วยสระ","order":["ส","ี"]},
+      {"letter":"กา","word":"กา","speech":"กา","art":"crow","options":["กา","กี","กู"],"prompt":"เรียงพยัญชนะก่อน แล้วตามด้วยสระ","order":["ก","า"]},
+      {"letter":"งู","word":"งู","speech":"งู","art":"snake","options":["งู","งา","งี"],"prompt":"เรียงพยัญชนะก่อน แล้วตามด้วยสระ","order":["ง","ู"]}
+    ]},
+    {"id":14,"title":"เริ่มรู้จักตัวสะกด","description":"ฟังคำ แล้วเติมตัวสะกดที่อยู่ท้ายคำ","mode":"build-word","questions":[
+      {"letter":"จาน","word":"จาน","speech":"จาน","art":"none","options":["จาน","จาม"],"prompt":"ฟังคำ แล้วเติมตัวสะกดท้ายคำ","build":{"missing":"final","baseWord":"จา","consonants":["จ"],"vowels":["า"],"finals":["น","ม"]}},
+      {"letter":"ชาม","word":"ชาม","speech":"ชาม","art":"none","options":["ชาม","ชาน"],"prompt":"ฟังคำ แล้วเติมตัวสะกดท้ายคำ","build":{"missing":"final","baseWord":"ชา","consonants":["ช"],"vowels":["า"],"finals":["ม","น"]}},
+      {"letter":"ปาก","word":"ปาก","speech":"ปาก","art":"none","options":["ปาก","ปาน","ปาม"],"prompt":"ฟังคำ แล้วเติมตัวสะกดท้ายคำ","build":{"missing":"final","baseWord":"ปา","consonants":["ป"],"vowels":["า"],"finals":["ก","น","ม"]}},
+      {"letter":"ดาว","word":"ดาว","speech":"ดาว","art":"none","options":["ดาว","ดาน","ดาม"],"prompt":"ฟังคำ แล้วเติมตัวสะกดท้ายคำ","build":{"missing":"final","baseWord":"ดา","consonants":["ด"],"vowels":["า"],"finals":["ว","น","ม"]}},
+      {"letter":"ลูก","word":"ลูก","speech":"ลูก","art":"none","options":["ลูก","ลูน","ลูม"],"prompt":"ฟังคำ แล้วเติมตัวสะกดท้ายคำ","build":{"missing":"final","baseWord":"ลู","consonants":["ล"],"vowels":["ู"],"finals":["ก","น","ม"]}}
+    ]},
+    {"id":15,"title":"ทบทวนการสร้างคำ","description":"ทบทวนการเรียง เติมส่วนที่หาย และสร้างคำ","mode":"build-word","questions":[
+      {"letter":"ตา","word":"ตา","speech":"ตา","art":"eye","options":["ตา","ตี","ตู"],"prompt":"เรียงส่วนของคำจากภาพ","order":["ต","า"]},
+      {"letter":"ปู","word":"ปู","speech":"ปู","art":"crab","options":["ปู","ปา","ปี"],"prompt":"เติมสระที่หาย ให้เป็นคำจากภาพ","build":{"missing":"vowel","consonants":["ป"],"vowels":["า","ี","ู"]}},
+      {"letter":"สี","word":"สี","speech":"สี","art":"paint","options":["สี","มี","ปี"],"prompt":"เลือกพยัญชนะและสระ ให้เป็นคำจากภาพ","build":{"consonants":["ส","ม"],"vowels":["า","ี","ู"]}},
+      {"letter":"ปาก","word":"ปาก","speech":"ปาก","art":"none","options":["ปาก","ปาน","ปาม"],"prompt":"ฟังคำ แล้วเติมตัวสะกดท้ายคำ","build":{"missing":"final","baseWord":"ปา","consonants":["ป"],"vowels":["า"],"finals":["ก","น","ม"]}},
+      {"letter":"งู","word":"งู","speech":"งู","art":"snake","options":["งู","งา","งี"],"prompt":"เรียงส่วนของคำจากภาพ","order":["ง","ู"]}
     ]}
   ]
 }

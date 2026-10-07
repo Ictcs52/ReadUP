@@ -1,7 +1,17 @@
 import { authenticatedDemo } from './fixtures';
+import curriculum from '../../src/data/lessons.json' with { type: 'json' };
 import { test, expect, type Page } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => { await authenticatedDemo(page); });
+
+for(const id of [13,14,15])test('lesson '+id+' uses Thai word audio and checks each ordering or building activity',async({page})=>{
+ const lesson=curriculum.lessons.find(l=>l.id===id)!;await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก '+lesson.title,exact:true}).click();
+ for(let i=0;i<5;i++){const q=lesson.questions[i] as any;await page.getByRole('button',{name:'ฟังตัวอย่าง',exact:true}).click();await expect.poll(async()=>page.evaluate(()=>(window as any).__spoken.at(-1)?.text)).toBe(q.word);expect(await page.evaluate(()=>(window as any).__spoken.at(-1).voiceURI)).toBe('premwadee-online');
+  if(q.order){for(const part of q.order)await page.getByRole('button',{name:['า','ี','ู'].includes(part)?'เพิ่มสระ อ'+part:'เพิ่มพยัญชนะ '+part,exact:true}).click();await page.getByRole('button',{name:'ตรวจคำที่เรียง',exact:true}).click();}
+  else{if(q.build.missing==='final')await page.getByRole('button',{name:'เลือกตัวสะกด '+q.word.at(-1),exact:true}).click();else{if(q.build.missing!=='vowel')await page.getByRole('button',{name:'เลือกพยัญชนะ '+q.word[0],exact:true}).click();if(q.build.missing!=='consonant')await page.getByRole('button',{name:'เลือกสระ อ'+q.word[1],exact:true}).click();}await page.getByRole('button',{name:'ตรวจคำที่สร้าง',exact:true}).click();}
+  await page.getByRole('button',{name:i===4?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();
+ }
+});
 
 test('level three speaks the target word and supports keyboard word construction with the preferred Thai voice',async({page})=>{
  await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก ประสมคำง่าย',exact:true}).click();
