@@ -5,18 +5,26 @@ import { resultCategory, summarize, percent, orderedOptions, csvCell, exportCsv,
 
 const curriculum = JSON.parse(fs.readFileSync(new URL('../src/data/lessons.json', import.meta.url),'utf8'));
 
-test('curriculum has exactly 30 planned lessons, with 15 playable lessons and 75 valid questions', () => {
+test('curriculum has exactly 30 planned lessons, with 16 playable lessons and 80 valid questions', () => {
   assert.equal(curriculum.levels.length,6);
   assert.equal(curriculum.levels.flatMap(l=>l.lessons).length,30);
-  assert.equal(curriculum.lessons.length,15);
-  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,75);
-  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]);
+  assert.equal(curriculum.lessons.length,16);
+  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,80);
+  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
   for(const l of curriculum.lessons) assert.equal(l.title,curriculum.levels[Math.ceil(l.id/5)-1].lessons[(l.id-1)%5]);
   for (const l of curriculum.lessons) for (const q of l.questions) {
     assert.ok(q.options.includes(q.letter));
     assert.equal(new Set(q.options).size,q.options.length);
     assert.ok(q.options.length>=2 && q.options.length<=3);
   }
+});
+test('first reading-word lesson has matching pictures and spoken words with gradual semantic choices',()=>{
+ const l=curriculum.lessons.find(l=>l.id===16);
+ assert.equal(l.mode,'word-picture');assert.equal(l.questions.length,5);
+ assert.deepEqual(l.questions.map(q=>q.word),['แมว','ปลา','บ้าน','ข้าว','กล้วย']);
+ assert.deepEqual(l.questions.map(q=>q.art),['cat','fish','house','rice','banana']);
+ assert.deepEqual(l.questions.map(q=>q.options.length),[2,2,3,3,3]);
+ for(const q of l.questions){assert.equal(q.letter,q.word);assert.equal(q.speech,q.word);assert.ok(!q.prompt.includes(q.word));assert.ok(q.options.every(w=>l.questions.some(target=>target.word===w)));}
 });
 test('first vowel lesson has three modelled examples before word transfer and correct vowel positions',()=>{
   const l=curriculum.lessons.find(l=>l.id===6);

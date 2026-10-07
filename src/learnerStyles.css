@@ -198,3 +198,11 @@ h1,h2,h3,.instruction,.hero h2 { letter-spacing:0; }
 .retry-popup .dialog-actions button { min-height:56px; font-size:19px; }
 .retry-popup::backdrop { background:#35273555; }
 @media(max-width:400px) { .retry-popup { padding:18px; }.retry-popup .dialog-top h2 { font-size:24px; }.retry-popup .dialog-actions { flex-direction:column; }.retry-popup .dialog-actions button { width:100%; } }
+
+.adventure-card.adventure-16 { --tile:#eaf7ef; --tile-line:#cce4d5; --tile-ink:#29604b; }
+.learner-space .reading-options .letter-option { min-width:0; white-space:nowrap; }
+@media(max-width:650px) {
+ .learner-space .reading-options { grid-template-columns:minmax(0,1fr); gap:12px; }
+ .learner-space .reading-options .letter-option { min-height:76px; padding:6px 18px; font-size:36px; }
+ .learner-space.large-text .reading-options .letter-option { font-size:40px; }
+}

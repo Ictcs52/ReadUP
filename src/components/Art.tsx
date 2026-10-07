@@ -20,6 +20,36 @@ export function BookFriend({ className = '' }: { className?: string }) {
 export function Illustration({ kind, label, className = '' }: { kind: string; label: string; className?: string }) {
   let art;
   switch (kind) {
+    case 'cat': art = <>
+      <path d="M101 96 78 43l63 27m38 0 63-27-23 53" fill="#efc28b" stroke="#875f4b" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="m91 65 13 32 24-19m64 0 24 19 13-32" fill="#eaa6b4"/>
+      <ellipse cx="160" cy="139" rx="84" ry="73" fill="#f5d1a0" stroke="#875f4b" strokeWidth="4"/>
+      <path d="m144 69 4 22m24-22-4 22" stroke="#ce9966" strokeWidth="7" strokeLinecap="round"/>
+      <circle cx="126" cy="127" r="8" fill="#423544"/><circle cx="194" cy="127" r="8" fill="#423544"/>
+      <path d="m149 147 11 10 11-10Z" fill="#d78298"/><path d="M160 157v9m-20 0q10 13 20 0 10 13 20 0" fill="none" stroke="#875f4b" strokeWidth="4" strokeLinecap="round"/>
+      <path d="m112 150-51-8m51 23-51 7m147-22 51-8m-51 23 51 7" stroke="#875f4b" strokeWidth="4" strokeLinecap="round"/>
+    </>; break;
+    case 'house': art = <>
+      <path d="M76 111h168v111H76Z" fill="#fff0c8" stroke="#875f4b" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="M53 113 160 33l107 80Z" fill="#eaa4b7" stroke="#875f4b" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="M142 222v-74h43v74" fill="#ba94bf" stroke="#875f4b" strokeWidth="4"/>
+      <path d="M94 137h30v33H94Zm110 0h24v33h-24Z" fill="#bce1dd" stroke="#875f4b" strokeWidth="4"/>
+      <circle cx="174" cy="188" r="3" fill="#fffdf7"/><path d="M52 224h216" stroke="#8fb99a" strokeWidth="7" strokeLinecap="round"/>
+    </>; break;
+    case 'rice': art = <>
+      <path d="M85 136q-10-41 28-43-1-36 34-26 21-30 42-2 34-13 35 24 29 9 14 47Z" fill="#fffdf7" stroke="#ae9b86" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="M66 137h188q-10 72-94 72-84 0-94-72Z" fill="#abd5cf" stroke="#4f7c76" strokeWidth="4"/>
+      <path d="M128 212h64" stroke="#4f7c76" strokeWidth="7" strokeLinecap="round"/>
+      <path d="m119 113 8-3m20-17 8-3m23 12 8 3m18 17 8-3m-53 3 8 3" stroke="#d4c6b6" strokeWidth="4" strokeLinecap="round"/>
+      <path d="M109 159q50 24 100 0" fill="none" stroke="#e3f3ec" strokeWidth="5" strokeLinecap="round"/>
+    </>; break;
+    case 'banana': art = <>
+      <path d="M86 73q8 132 132 105 38-8 52-37-37 82-124 70-90-14-75-123Z" fill="#f7d577" stroke="#907338" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="M112 70q-8 113 105 86 20-5 41-20-39 65-106 48Q79 166 99 72Z" fill="#ffe398" stroke="#907338" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="m83 78 7-25 20 4-6 20" fill="#9fbc82" stroke="#907338" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="M103 103q-2 69 77 76" fill="none" stroke="#dfb84f" strokeWidth="4" strokeLinecap="round"/>
+      <path d="m263 144 8-7m-50 45 8-3" stroke="#907338" strokeWidth="5" strokeLinecap="round"/>
+    </>; break;
     case 'crow': art = <>
       <path d="m134 188-5 29m48-29 7 29m-72 2h29m30 0h30" stroke="#8b624d" strokeWidth="5" strokeLinecap="round"/>
       <path d="m189 145 65-35-17 66-35 10" fill="#665b7d" stroke="#423544" strokeWidth="4" strokeLinejoin="round"/>
