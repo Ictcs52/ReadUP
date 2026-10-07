@@ -134,6 +134,15 @@ test('student accounts restrict reads and writes to self and preserve teacher as
     assert.deepEqual((await asUser(teacher,'select payload from public.readtech_sessions where lesson_id=8')).rows[0].payload.records.map(r=>r.word),['ตา','ปู','สี','กา','งู']);
     assert.equal((await asUser(peer,'select id from public.readtech_sessions where lesson_id=8')).rows.length,0);
     await assert.rejects(save(teacher,student,0,{...listenRound,id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'}),e=>e.code==='42501');
+    const builder=curriculum.lessons.find(l=>l.id===11);
+    const buildRound={...listenRound,id:'11111111-1111-4111-8111-111111111119',lessonId:11,status:'active',endedAt:undefined,answered:false,index:0,records:[],wordDraft:{consonant:'ต',vowel:'ี'}};
+    assert.equal((await save(pupil,student,0,buildRound)).rows[0].saved.revision,1);
+    assert.deepEqual((await asUser(pupil,'select payload from public.readtech_sessions where lesson_id=11')).rows[0].payload.wordDraft,{consonant:'ต',vowel:'ี'});
+    const completedBuild={...buildRound,status:'complete',endedAt:5000,index:4,answered:true,records:builder.questions.map((q,i)=>({questionIndex:i,letter:q.letter,word:q.word,category:'independent',wrongAttempts:0,hintLevel:0,activeMs:100}))};
+    await save(pupil,student,1,completedBuild);
+    assert.deepEqual((await asUser(teacher,'select payload from public.readtech_sessions where lesson_id=11')).rows[0].payload.records.map(r=>r.word),builder.questions.map(q=>q.word));
+    assert.equal((await asUser(peer,'select id from public.readtech_sessions where lesson_id=11')).rows.length,0);
+    await assert.rejects(save(teacher,student,2,{...completedBuild,wordDraft:{consonant:'ก',vowel:'า'}}),e=>e.code==='42501');
     for(const lessonId of [9,10]){
       const lesson=curriculum.lessons.find(l=>l.id===lessonId);
       const id=lessonId===9?'99999999-9999-4999-8999-999999999999':'10101010-1010-4010-8010-101010101010';

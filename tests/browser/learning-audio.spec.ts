@@ -3,14 +3,24 @@ import { test, expect, type Page } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => { await authenticatedDemo(page); });
 
+test('level three speaks the target word and supports keyboard word construction with the preferred Thai voice',async({page})=>{
+ await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก ประสมคำง่าย',exact:true}).click();
+ const words=['ตา','ปู','สี','กา','งู'];
+ for(let i=0;i<5;i++){
+  await page.getByRole('button',{name:'ฟังตัวอย่าง',exact:true}).click();await expect.poll(async()=>page.evaluate(()=>(window as any).__spoken.at(-1)?.text)).toBe(words[i]);expect(await page.evaluate(()=>(window as any).__spoken.at(-1).voiceURI)).toBe('premwadee-online');
+  const c=page.getByRole('button',{name:'เลือกพยัญชนะ '+words[i][0],exact:true});await c.focus();await page.keyboard.press('Enter');const v=page.getByRole('button',{name:'เลือกสระ อ'+words[i][1],exact:true});await v.focus();await page.keyboard.press('Space');
+  await page.getByRole('button',{name:'ตรวจคำที่สร้าง',exact:true}).click();await page.getByRole('button',{name:i===4?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();
+ }
+});
+
 for(const id of [9,10])test('lesson '+id+' plays each target through the preferred Thai voice',async({page})=>{
- await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:id===9?'เริ่มฝึก เปลี่ยนสระเปลี่ยนเสียง':'เริ่มฝึก คำไม่มีตัวสะกด',exact:true}).click();
+ await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('tab',{name:'LEVEL 2 พร้อมฝึก',exact:true}).click();await page.getByRole('button',{name:id===9?'เริ่มฝึก เปลี่ยนสระเปลี่ยนเสียง':'เริ่มฝึก คำไม่มีตัวสะกด',exact:true}).click();
  const speech=id===9?['ตอ อี ตี','ตอ อา ตา','ปอ อี ปี','ปอ อู ปู','ดอ อี ดี']:['ตา','ปู','สี','กา','งู'];const words=id===9?['ตี','ตา','ปี','ปู','ดี']:['ตา','ปู','สี','กา','งู'];
  for(let i=0;i<5;i++){await page.getByRole('button',{name:'ฟังตัวอย่าง',exact:true}).click();await expect.poll(async()=>page.evaluate(()=>(window as any).__spoken.at(-1)?.text)).toBe(speech[i]);expect(await page.evaluate(()=>(window as any).__spoken.at(-1).voiceURI)).toBe('premwadee-online');await page.getByRole('button',{name:'เลือก '+words[i],exact:true}).click();await page.getByRole('button',{name:i===4?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();}
 });
 
 test('word listening plays the target and repeats it at help two through the selected Thai voice',async({page})=>{
- await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก ฟังแล้วเลือกพยางค์',exact:true}).click();
+ await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('tab',{name:'LEVEL 2 พร้อมฝึก',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก ฟังแล้วเลือกพยางค์',exact:true}).click();
  const words=['ตา','ปู','สี','กา','งู'];
  for(let i=0;i<5;i++){
   await page.getByRole('button',{name:'ฟังตัวอย่าง',exact:true}).click();await expect.poll(async()=>page.evaluate(()=>(window as any).__spoken.at(-1)?.text)).toBe(words[i]);expect(await page.evaluate(()=>(window as any).__spoken.at(-1).voiceURI)).toBe('premwadee-online');
@@ -20,13 +30,13 @@ test('word listening plays the target and repeats it at help two through the sel
 });
 
 test('blending audio spells consonant and vowel then reads the word through the chosen Thai voice',async({page})=>{
- await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก พยัญชนะกับสระ',exact:true}).click();
+ await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('tab',{name:'LEVEL 2 พร้อมฝึก',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก พยัญชนะกับสระ',exact:true}).click();
  const speech=['ตอ อา ตา','ปอ อู ปู','สอ อี สี','กอ อา กา','งอ อู งู'];const words=['ตา','ปู','สี','กา','งู'];
  for(let i=0;i<5;i++){await page.getByRole('button',{name:'ฟังตัวอย่าง',exact:true}).click();await expect.poll(async()=>page.evaluate(()=>(window as any).__spoken.at(-1)?.text)).toBe(speech[i]);expect(await page.evaluate(()=>(window as any).__spoken.at(-1).voiceURI)).toBe('premwadee-online');await page.getByRole('button',{name:`เลือก ${words[i]}`,exact:true}).click();await page.getByRole('button',{name:i===4?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();}
 });
 
 test('new vowel lesson reads each vowel and word with the selected Thai voice',async({page})=>{
- await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก รู้จักสระชุดแรก',exact:true}).click();
+ await mockSpeech(page,true,'Microsoft เปรมวดี Online (Natural) - Thai (Thailand)');await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('tab',{name:'LEVEL 2 พร้อมฝึก',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก รู้จักสระชุดแรก',exact:true}).click();
  const words=['สระ อา ตา','สระ อี สี','สระ อู ปู','ปลา ใช้สระ อา','หมี ใช้สระ อี'];const answers=['อา','อี','อู','อา','อี'];
  for(let i=0;i<5;i++){await page.getByRole('button',{name:'ฟังตัวอย่าง',exact:true}).click();await expect.poll(async()=>page.evaluate(()=>(window as any).__spoken.at(-1)?.text)).toBe(words[i]);expect(await page.evaluate(()=>(window as any).__spoken.at(-1).voiceURI)).toBe('premwadee-online');await page.getByRole('button',{name:`เลือกสระ ${answers[i]}`,exact:true}).click();await page.getByRole('button',{name:i===4?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();}
 });

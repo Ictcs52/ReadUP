@@ -77,6 +77,13 @@
       {"letter":"สี","word":"สี","speech":"สี","art":"paint","options":["สี","กา","งู"],"prompt":"ดูภาพ แล้วเลือกคำที่ตรงกัน"},
       {"letter":"กา","word":"กา","speech":"กา","art":"crow","options":["กา","ตา","ปู"],"prompt":"ดูภาพ แล้วเลือกคำที่ตรงกัน"},
       {"letter":"งู","word":"งู","speech":"งู","art":"snake","options":["งู","สี","กา"],"prompt":"ดูภาพ แล้วเลือกคำที่ตรงกัน"}
+    ]},
+    {"id":11,"title":"ประสมคำง่าย","description":"เลือกพยัญชนะกับสระ แล้วสร้างคำจากภาพ","mode":"build-word","questions":[
+      {"letter":"ตา","word":"ตา","speech":"ตา","art":"eye","options":["ตา","ตี","ตู"],"prompt":"แตะพยัญชนะและสระ เพื่อสร้างคำจากภาพ","build":{"consonants":["ต"],"vowels":["า","ี","ู"]}},
+      {"letter":"ปู","word":"ปู","speech":"ปู","art":"crab","options":["ปู","ปา","ปี"],"prompt":"แตะพยัญชนะและสระ เพื่อสร้างคำจากภาพ","build":{"consonants":["ป"],"vowels":["า","ี","ู"]}},
+      {"letter":"สี","word":"สี","speech":"สี","art":"paint","options":["สี","สา","สู"],"prompt":"แตะพยัญชนะและสระ เพื่อสร้างคำจากภาพ","build":{"consonants":["ส","ม"],"vowels":["า","ี","ู"]}},
+      {"letter":"กา","word":"กา","speech":"กา","art":"crow","options":["กา","กี","กู"],"prompt":"แตะพยัญชนะและสระ เพื่อสร้างคำจากภาพ","build":{"consonants":["ก","ต"],"vowels":["า","ี","ู"]}},
+      {"letter":"งู","word":"งู","speech":"งู","art":"snake","options":["งู","งา","งี"],"prompt":"แตะพยัญชนะและสระ เพื่อสร้างคำจากภาพ","build":{"consonants":["ง","ป"],"vowels":["า","ี","ู"]}}
     ]}
   ]
 }

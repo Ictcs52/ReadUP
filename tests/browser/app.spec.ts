@@ -12,7 +12,7 @@ async function answerAll(page: Page, id: number) {
   const lesson = curriculum.lessons.find(l=>l.id===id)!;
   for (let i=0;i<lesson.questions.length;i++) {
     const letter=lesson.questions[i].letter;
-    await page.getByRole('button',{name:lesson.mode==='vowel'?`เลือกสระ อ${letter}`:`เลือก ${letter}`,exact:true}).click();
+    if(lesson.mode==='build-word'){await page.getByRole('button',{name:'เลือกพยัญชนะ '+letter[0],exact:true}).click();await page.getByRole('button',{name:'เลือกสระ อ'+letter[1],exact:true}).click();await page.getByRole('button',{name:'ตรวจคำที่สร้าง',exact:true}).click();} else await page.getByRole('button',{name:lesson.mode==='vowel'?`เลือกสระ อ${letter}`:`เลือก ${letter}`,exact:true}).click();
     if (lesson.mode==='match') await page.getByRole('button',{name:'วางตัวอักษรที่เลือกลงช่องจับคู่'}).click();
     await page.getByRole('button',{name:i===lesson.questions.length-1?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();
   }
@@ -29,9 +29,24 @@ async function snapshot(page: Page) {
   }));
 }
 
+test('level three builder saves unfinished words, checks only submitted answers and keeps assistance on retry',async({page})=>{
+ await home(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await expect(page.getByRole('tab',{name:'LEVEL 3 พร้อมฝึก',exact:true})).toHaveAttribute('aria-selected','true');
+ await expect(page.locator('.level-panel .lesson-card')).toHaveCount(1);await expect(page.locator('.level-panel .planned-lesson')).toHaveCount(4);
+ await page.getByRole('button',{name:'เริ่มฝึก ประสมคำง่าย',exact:true}).click();const check=page.getByRole('button',{name:'ตรวจคำที่สร้าง',exact:true});await expect(check).toBeDisabled();await expect(page.locator('.target-letter')).toHaveCount(0);
+ await page.getByRole('button',{name:'เลือกสระ อี',exact:true}).click();await expect(check).toBeDisabled();await page.getByRole('button',{name:'เลือกพยัญชนะ ต',exact:true}).click();await expect(page.locator('.built-word strong')).toHaveText('ตี');expect((await snapshot(page)).sessions[0].wrongAttempts).toBe(0);
+ await page.reload();await page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();await expect(page.locator('.built-word strong')).toHaveText('ตี');await check.click();await expect(page.getByRole('button',{name:'เลือกสระ อา',exact:true})).toBeDisabled();
+ await page.getByRole('button',{name:'ช่วยทีละนิด',exact:true}).click();await page.getByRole('button',{name:'ลองใหม่',exact:true}).click();await expect(page.locator('.built-word strong')).toHaveText('?');await expect(page.locator('.hint-box')).toContainText('ตัวช่วย 1/3');expect((await snapshot(page)).sessions[0].wrongAttempts).toBe(1);
+ await page.getByRole('button',{name:'ช่วยทีละนิด',exact:true}).click();await expect(page.locator('.hint-letter')).toHaveCount(0);await page.getByRole('button',{name:'ช่วยทีละนิด',exact:true}).click();await expect(page.locator('.hint-letter')).toHaveText('ตา');
+ await page.getByRole('button',{name:'กลับหน้าแรก',exact:true}).click();await page.getByRole('button',{name:'ปรับการใช้งาน',exact:true}).first().click();await page.getByRole('checkbox',{name:/^ตัวหนังสือใหญ่ขึ้น/}).check();await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+ await page.screenshot({path:'test-results/word-builder-mobile.png',fullPage:true});await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});expect(await page.evaluate(async()=>(await(window as any).axe.run(document,{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa','wcag22aa']}})).violations.map((v:any)=>v.id))).toEqual([]);
+ await answerAll(page,11);const round=(await snapshot(page)).sessions[0];expect(round.lessonId).toBe(11);expect(round.records[0]).toMatchObject({category:'assisted',wrongAttempts:1,hintLevel:3});expect(round.records.map((r:any)=>r.word)).toEqual(['ตา','ปู','สี','กา','งู']);
+ await page.getByRole('button',{name:'ดูรางวัลที่สะสม',exact:true}).click();await expect(page.locator('.trophy-card.earned')).toHaveCount(1);await expect(page.locator('.trophy-card.earned')).toContainText('บทที่ 11: ประสมคำง่าย');
+});
+
 for(const id of [9,10])test('level two lesson '+id+' supports gradual help, retry, mobile resume and its own trophy',async({page})=>{
  const lesson=curriculum.lessons.find(l=>l.id===id)!;
- await home(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();
+ await home(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('tab',{name:'LEVEL 2 พร้อมฝึก',exact:true}).click();
  await expect(page.locator('.level-panel .lesson-card')).toHaveCount(5);await expect(page.locator('.level-panel .planned-lesson')).toHaveCount(0);
  await page.getByRole('button',{name:'เริ่มฝึก '+lesson.title,exact:true}).click();
  if(id===9){await expect(page.locator('.vowel-change>strong')).toHaveText('ตา');await expect(page.locator('.blend-word strong')).toHaveText('?');}
@@ -54,7 +69,7 @@ for(const id of [9,10])test('level two lesson '+id+' supports gradual help, retr
 });
 
 test('word listening hides the model, preserves gradual hints on resume and awards lesson eight',async({page})=>{
- await home(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก ฟังแล้วเลือกพยางค์',exact:true}).click();
+ await home(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('tab',{name:'LEVEL 2 พร้อมฝึก',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก ฟังแล้วเลือกพยางค์',exact:true}).click();
  await expect(page.locator('.listen-orb')).toBeVisible();await expect(page.locator('.question-visual .target-letter')).toHaveCount(0);await expect(page.locator('.question-visual svg')).toHaveCount(1);
  await page.getByRole('button',{name:'เลือก ตี',exact:true}).click();await page.getByRole('button',{name:'ลองใหม่',exact:true}).click();
  await page.getByRole('button',{name:'ช่วยทีละนิด',exact:true}).click();await expect(page.locator('.listen-orb')).toHaveCount(0);await expect(page.locator('.question-visual .target-letter')).toHaveCount(0);await expect(page.locator('.hint-box')).not.toContainText('ตา');
@@ -81,7 +96,7 @@ test('desktop landing page and mobile pages fit without horizontal scrolling',as
   await page.screenshot({path:'test-results/exercise-mobile.png',fullPage:true});
 });
 
-test('all ten lessons are usable, including tap-to-match, vowels, blending and listening',async({page})=>{
+test('all eleven lessons are usable, including tap-to-match, vowels, blending and listening',async({page})=>{
   await home(page);
   for(const lesson of curriculum.lessons) {
     await page.getByRole('button',{name:'บทเรียนของฉัน',exact:true}).click();
@@ -91,7 +106,7 @@ test('all ten lessons are usable, including tap-to-match, vowels, blending and l
     await expect(page.getByRole('heading',{name:'ทำกิจกรรมครบแล้ว!'})).toBeVisible();
     await page.getByRole('button',{name:'กลับหน้าหลัก',exact:true}).click();
   }
-  await expect.poll(async()=>(await snapshot(page)).sessions.filter((s:any)=>s.status==='complete').length).toBe(10);
+  await expect.poll(async()=>(await snapshot(page)).sessions.filter((s:any)=>s.status==='complete').length).toBe(11);
 });
 
 test('independent, retry, assisted and skipped results persist distinctly',async({page})=>{
@@ -186,7 +201,7 @@ test('planned levels never present incomplete lessons as playable',async({page})
 });
 
 test('blending models, gradual help and a resumed word round fit mobile and award lesson seven once',async({page})=>{
- await home(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก พยัญชนะกับสระ',exact:true}).click();
+ await home(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('tab',{name:'LEVEL 2 พร้อมฝึก',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึก พยัญชนะกับสระ',exact:true}).click();
  await expect(page.locator('.blend-parts')).toHaveAttribute('aria-label','ต กับสระ อา ประสมเป็น ตา');
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'test-results/blend-model-mobile.png',fullPage:true});
  await page.getByRole('button',{name:'เลือก ตี',exact:true}).click();await page.getByRole('button',{name:'ลองใหม่',exact:true}).click();await page.getByRole('button',{name:'ช่วยทีละนิด',exact:true}).click();await expect(page.locator('.hint-box')).toContainText('ด้านขวา');await page.getByRole('button',{name:'เลือก ตา',exact:true}).click();await page.getByRole('button',{name:'ข้อต่อไป',exact:true}).click();
@@ -202,7 +217,7 @@ test('blending models, gradual help and a resumed word round fit mobile and awar
 });
 
 test('vowel lesson preserves hints and answers on reload, hides models for transfer and fits enlarged mobile text',async({page})=>{
- await home(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();
+ await home(page);await page.getByRole('button',{name:'ดูบทใหม่',exact:true}).click();await page.getByRole('tab',{name:'LEVEL 2 พร้อมฝึก',exact:true}).click();
  await expect(page.getByRole('tab',{name:'LEVEL 2 พร้อมฝึก',exact:true})).toHaveAttribute('aria-selected','true');
  await expect(page.locator('.level-panel .lesson-card')).toHaveCount(5);await expect(page.locator('.level-panel .planned-lesson')).toHaveCount(0);
  await page.getByRole('button',{name:'เริ่มฝึก รู้จักสระชุดแรก',exact:true}).click();
@@ -304,7 +319,7 @@ test('reminder setting persists and ten minutes does not prompt after only five'
 
 test('rewards recognise real practice, award a trophy once and keep repeated training distinct',async({page})=>{
  await home(page);await page.getByRole('button',{name:'รางวัลของฉัน',exact:true}).click();
- const totals=page.locator('.reward-totals');await expect(totals.locator('dd').nth(0)).toHaveText('0 / 10 ถ้วย');await expect(totals.locator('dd').nth(1)).toHaveText('0 / 5 เหรียญ');
+ const totals=page.locator('.reward-totals');await expect(totals.locator('dd').nth(0)).toHaveText('0 / 11 ถ้วย');await expect(totals.locator('dd').nth(1)).toHaveText('0 / 5 เหรียญ');
  await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'เริ่มฝึกวันนี้',exact:true}).click();
  await page.getByRole('button',{name:'เลือก ม',exact:true}).click();await page.getByRole('button',{name:'เลือก ก',exact:true}).click();await expect(page.getByText('เยี่ยมมาก! ลองอีกครั้งจนทำได้แล้ว ได้ 1 ดาว',{exact:true})).toBeVisible();
  await expect.poll(async()=>typeof (await snapshot(page)).sessions[0].records[0].answeredAt).toBe('number');
@@ -312,10 +327,10 @@ test('rewards recognise real practice, award a trophy once and keep repeated tra
  await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();await page.getByRole('button',{name:'ข้อต่อไป',exact:true}).click();
  const lesson=curriculum.lessons[0];for(let i=1;i<lesson.questions.length;i++){await page.getByRole('button',{name:`เลือก ${lesson.questions[i].letter}`,exact:true}).click();await page.getByRole('button',{name:i===lesson.questions.length-1?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();}
  await expect(page.getByText('เก็บถ้วยประจำบทนี้แล้ว · บทละ 1 ใบ',{exact:true})).toBeVisible();await page.getByRole('button',{name:'ดูรางวัลที่สะสม',exact:true}).click();
- await expect(totals.locator('dd').nth(0)).toHaveText('1 / 10 ถ้วย');await expect(totals.locator('dd').nth(1)).toHaveText('2 / 5 เหรียญ');await expect(page.locator('.trophy-card.earned')).toHaveCount(1);
+ await expect(totals.locator('dd').nth(0)).toHaveText('1 / 11 ถ้วย');await expect(totals.locator('dd').nth(1)).toHaveText('2 / 5 เหรียญ');await expect(page.locator('.trophy-card.earned')).toHaveCount(1);
  await page.reload();await page.getByRole('button',{name:'รางวัลของฉัน',exact:true}).click();await expect(totals.locator('dd').nth(1)).toHaveText('2 / 5 เหรียญ');
  await page.getByRole('button',{name:'บทเรียนของฉัน',exact:true}).click();await page.getByRole('button',{name:`ฝึกอีกครั้ง ${lesson.title}`,exact:true}).click();await answerAll(page,1);await page.getByRole('button',{name:'ดูรางวัลที่สะสม',exact:true}).click();
- await expect(totals.locator('dd').nth(0)).toHaveText('1 / 10 ถ้วย');await expect(totals.locator('dd').nth(1)).toHaveText('3 / 5 เหรียญ');await expect(totals.locator('dd').nth(2)).toHaveText('1 วัน');
+ await expect(totals.locator('dd').nth(0)).toHaveText('1 / 11 ถ้วย');await expect(totals.locator('dd').nth(1)).toHaveText('3 / 5 เหรียญ');await expect(totals.locator('dd').nth(2)).toHaveText('1 วัน');
  await page.getByRole('button',{name:'ปรับการใช้งาน',exact:true}).first().click();await page.getByRole('checkbox',{name:/^ตัวหนังสือใหญ่ขึ้น/}).check();await page.getByRole('button',{name:'รางวัลของฉัน',exact:true}).click();
  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
  await page.screenshot({path:'test-results/rewards-mobile.png',fullPage:true});await page.addScriptTag({path:require.resolve('axe-core/axe.min.js')});
@@ -327,5 +342,5 @@ test('opening a lesson or skipping every activity gives no completed mission, tr
  await expect(page.locator('.reward-totals dd').nth(1)).toHaveText('0 / 5 เหรียญ');await expect(page.locator('.reward-totals dd').nth(2)).toHaveText('0 วัน');
  await page.getByRole('button',{name:'หน้าหลัก',exact:true}).click();await page.getByRole('button',{name:'ฝึกต่อจากครั้งก่อน',exact:true}).click();
  for(let i=0;i<5;i++){await page.getByRole('button',{name:'ฝึกข้อนี้ภายหลัง',exact:true}).click();await page.getByRole('button',{name:i===4?'ดูรางวัลของฉัน':'ข้อต่อไป',exact:true}).click();}
- await expect(page.getByText('เก็บถ้วยประจำบทนี้แล้ว · บทละ 1 ใบ',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'ดูรางวัลที่สะสม',exact:true}).click();await expect(page.locator('.reward-totals dd').nth(0)).toHaveText('0 / 10 ถ้วย');await expect(page.locator('.reward-totals dd').nth(1)).toHaveText('0 / 5 เหรียญ');await expect(page.locator('.reward-totals dd').nth(2)).toHaveText('0 วัน');
+ await expect(page.getByText('เก็บถ้วยประจำบทนี้แล้ว · บทละ 1 ใบ',{exact:true})).toHaveCount(0);await page.getByRole('button',{name:'ดูรางวัลที่สะสม',exact:true}).click();await expect(page.locator('.reward-totals dd').nth(0)).toHaveText('0 / 11 ถ้วย');await expect(page.locator('.reward-totals dd').nth(1)).toHaveText('0 / 5 เหรียญ');await expect(page.locator('.reward-totals dd').nth(2)).toHaveText('0 วัน');
 });

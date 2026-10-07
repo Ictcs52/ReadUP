@@ -5,12 +5,12 @@ import { resultCategory, summarize, percent, orderedOptions, csvCell, exportCsv,
 
 const curriculum = JSON.parse(fs.readFileSync(new URL('../src/data/lessons.json', import.meta.url),'utf8'));
 
-test('curriculum has exactly 30 planned lessons, with 10 playable lessons and 50 valid questions', () => {
+test('curriculum has exactly 30 planned lessons, with 11 playable lessons and 55 valid questions', () => {
   assert.equal(curriculum.levels.length,6);
   assert.equal(curriculum.levels.flatMap(l=>l.lessons).length,30);
-  assert.equal(curriculum.lessons.length,10);
-  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,50);
-  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7,8,9,10]);
+  assert.equal(curriculum.lessons.length,11);
+  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,55);
+  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7,8,9,10,11]);
   for(const l of curriculum.lessons) assert.equal(l.title,curriculum.levels[Math.ceil(l.id/5)-1].lessons[(l.id-1)%5]);
   for (const l of curriculum.lessons) for (const q of l.questions) {
     assert.ok(q.options.includes(q.letter));
@@ -42,6 +42,11 @@ test('open-word picture practice uses familiar consonant plus vowel words with s
  const l=curriculum.lessons.find(l=>l.id===10);
  assert.equal(l.mode,'word-picture');assert.equal(l.questions.length,5);
  for(const q of l.questions){assert.equal(q.speech,q.word);assert.equal(q.letter,q.word);assert.equal(q.word.length,2);assert.ok(['า','ี','ู'].includes(q.word[1]));assert.ok(!q.prompt.includes(q.word));assert.ok(q.options.every(w=>w.length===2));}
+});
+test('level three starts with familiar words that can be built from the offered consonants and vowels',()=>{
+ const l=curriculum.lessons.find(l=>l.id===11);assert.equal(l.mode,'build-word');
+ assert.deepEqual(l.questions.map(q=>q.build.consonants.length),[1,1,2,2,2]);
+ for(const q of l.questions){assert.equal(q.letter,q.word);assert.ok(q.build.consonants.includes(q.word[0]));assert.ok(q.build.vowels.includes(q.word[1]));assert.equal(q.speech,q.word);assert.equal(new Set(q.build.consonants).size,q.build.consonants.length);assert.ok(!q.prompt.includes(q.word));}
 });
 test('first-time success with a hint is assisted, never independent',()=>{
   assert.equal(resultCategory(0,0),'independent');

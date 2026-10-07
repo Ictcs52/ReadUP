@@ -1,4 +1,16 @@
 /* Friendly, quiet surfaces for existing learner activities. */
+.word-builder { margin-top:20px; display:grid; gap:18px; }
+.built-word { display:grid; gap:3px; padding:12px; border:2px solid #badbca; border-radius:20px; background:#eaf7ef; color:#17645b; }
+.built-word small,.built-word span { font-size:14px; }
+.built-word strong { font-size:48px; line-height:1.7; }
+.word-builder fieldset { margin:0; padding:10px; border:2px solid #dce4da; border-radius:18px; min-width:0; }
+.word-builder legend { padding:0 6px; color:#34344e; font-size:16px; text-align:left; }
+.build-choices { display:flex; justify-content:center; gap:10px; }
+.learner-space .build-choices .letter-option { flex:1; max-width:130px; min-width:0; font-size:40px; min-height:86px; padding:5px; }
+.build-choices .letter-option[aria-pressed=true] { background:#eaf7ef; border-color:#17645b; }
+.word-builder .check-word { justify-content:center; min-height:54px; }
+.adventure-card.adventure-11 { --tile:#e7f6f1; --tile-line:#c3e1d4; --tile-ink:#17645b; }
+@media(max-width:650px){ .learner-space .build-choices .letter-option { font-size:34px; min-height:76px; }.learner-space.large-text .build-choices .letter-option { font-size:38px; }.build-choices { gap:6px; } }
 .vowel-change { margin:0 auto 16px; padding:12px; max-width:360px; border-radius:18px; background:#edf1ff; color:#34344e; display:grid; justify-items:center; gap:3px; }
 .vowel-change small { font-size:14px; color:#455b8a; }
 .vowel-change>strong { font-size:44px; line-height:1.7; }
