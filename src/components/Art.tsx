@@ -20,6 +20,43 @@ export function BookFriend({ className = '' }: { className?: string }) {
 export function Illustration({ kind, label, className = '' }: { kind: string; label: string; className?: string }) {
   let art;
   switch (kind) {
+    case 'cup': art = <>
+      <path d="M206 101h24q52 4 37 46-9 27-61 24" fill="none" stroke="#567e78" strokeWidth="15" strokeLinecap="round"/>
+      <path d="M80 89h131v100q-1 28-65 28-65 0-66-28Z" fill="#b4dcd3" stroke="#567e78" strokeWidth="4"/>
+      <ellipse cx="145" cy="89" rx="65" ry="15" fill="#f5fcf8" stroke="#567e78" strokeWidth="4"/>
+      <path d="M101 113v64" stroke="#e6f5ec" strokeWidth="7" strokeLinecap="round"/>
+      <path d="M118 200h55" stroke="#88bdb3" strokeWidth="5" strokeLinecap="round"/>
+    </>; break;
+    case 'spoon': art = <>
+      <path d="M149 108h22l9 110q-20 18-40 0Z" fill="#b8cbd9" stroke="#617485" strokeWidth="4" strokeLinejoin="round"/>
+      <ellipse cx="160" cy="78" rx="45" ry="59" fill="#dce7ed" stroke="#617485" strokeWidth="4"/>
+      <path d="M137 47q-16 34 0 59" fill="none" stroke="#fffdf7" strokeWidth="8" strokeLinecap="round"/>
+      <path d="M160 148v59" stroke="#eaf2f6" strokeWidth="5" strokeLinecap="round"/>
+    </>; break;
+    case 'table': art = <>
+      <path d="m73 121-7 101h23l15-94m129-7 21 101h-23l-22-94" fill="#d5a06e" stroke="#875f4b" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="M81 122h158v30H81Z" fill="#d5a06e" stroke="#875f4b" strokeWidth="4"/>
+      <path d="M55 83h210l19 41H36Z" fill="#edc89f" stroke="#875f4b" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="M36 124h248v16H36Z" fill="#deb082" stroke="#875f4b" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="M85 99h137" stroke="#f8e2c3" strokeWidth="5" strokeLinecap="round"/>
+    </>; break;
+    case 'egg': art = <>
+      <ellipse cx="160" cy="216" rx="62" ry="8" fill="#e6dfd3"/>
+      <path d="M92 146c0-54 41-113 68-113s68 59 68 113c0 48-34 67-68 67s-68-19-68-67Z" fill="#fff3d6" stroke="#b08b64" strokeWidth="4"/>
+      <path d="M121 102q-13 21-12 45" fill="none" stroke="#fffdf7" strokeWidth="9" strokeLinecap="round"/>
+    </>; break;
+    case 'mother':
+    case 'father': art = <>
+      {kind==='mother' && <path d="M91 115q-17-93 69-93t69 93l12 99H79Z" fill="#675052" stroke="#4c3c42" strokeWidth="4"/>}
+      <path d="M72 226q7-64 88-64t88 64Z" fill={kind==='mother'?'#e7a9bf':'#a5cdc7'} stroke="#675052" strokeWidth="4" strokeLinejoin="round"/>
+      <path d="M144 150v32q16 19 32 0v-32" fill="#f1cba8" stroke="#916a57" strokeWidth="4"/>
+      <ellipse cx="160" cy="100" rx="54" ry="62" fill="#f5d7b9" stroke="#916a57" strokeWidth="4"/>
+      <path d={kind==='mother'?'M106 91q-9-61 54-65 67 2 54 66-30-5-49-34-23 30-59 33Z':'M106 74q-13-50 48-49 33-13 60 18l-4 35q-34-5-49-23-28 24-55 19Z'} fill="#675052" stroke="#4c3c42" strokeWidth="4" strokeLinejoin="round"/>
+      <circle cx="140" cy="99" r="5" fill="#423544"/><circle cx="180" cy="99" r="5" fill="#423544"/>
+      <path d="M145 129q15 15 30 0" fill="none" stroke="#916a57" strokeWidth="4" strokeLinecap="round"/>
+      <ellipse cx="125" cy="117" rx="9" ry="5" fill="#e8a1ac"/><ellipse cx="195" cy="117" rx="9" ry="5" fill="#e8a1ac"/>
+      <path d="m131 178 29 24 29-24" fill="none" stroke="#fff9ec" strokeWidth="5" strokeLinejoin="round"/>
+    </>; break;
     case 'cat': art = <>
       <path d="M101 96 78 43l63 27m38 0 63-27-23 53" fill="#efc28b" stroke="#875f4b" strokeWidth="4" strokeLinejoin="round"/>
       <path d="m91 65 13 32 24-19m64 0 24 19 13-32" fill="#eaa6b4"/>

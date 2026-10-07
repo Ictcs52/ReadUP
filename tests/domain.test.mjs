@@ -5,12 +5,12 @@ import { resultCategory, summarize, percent, orderedOptions, csvCell, exportCsv,
 
 const curriculum = JSON.parse(fs.readFileSync(new URL('../src/data/lessons.json', import.meta.url),'utf8'));
 
-test('curriculum has exactly 30 planned lessons, with 16 playable lessons and 80 valid questions', () => {
+test('curriculum has exactly 30 planned lessons, with 20 playable lessons and 100 valid questions', () => {
   assert.equal(curriculum.levels.length,6);
   assert.equal(curriculum.levels.flatMap(l=>l.lessons).length,30);
-  assert.equal(curriculum.lessons.length,16);
-  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,80);
-  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
+  assert.equal(curriculum.lessons.length,20);
+  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,100);
+  assert.deepEqual(curriculum.lessons.map(l=>l.id),Array.from({length:20},(_,i)=>i+1));
   for(const l of curriculum.lessons) assert.equal(l.title,curriculum.levels[Math.ceil(l.id/5)-1].lessons[(l.id-1)%5]);
   for (const l of curriculum.lessons) for (const q of l.questions) {
     assert.ok(q.options.includes(q.letter));
@@ -25,6 +25,14 @@ test('first reading-word lesson has matching pictures and spoken words with grad
  assert.deepEqual(l.questions.map(q=>q.art),['cat','fish','house','rice','banana']);
  assert.deepEqual(l.questions.map(q=>q.options.length),[2,2,3,3,3]);
  for(const q of l.questions){assert.equal(q.letter,q.word);assert.equal(q.speech,q.word);assert.ok(!q.prompt.includes(q.word));assert.ok(q.options.every(w=>l.questions.some(target=>target.word===w)));}
+});
+test('level four is complete, uses matching semantic choices, and reviews only introduced words',()=>{
+ const lessons=curriculum.lessons.filter(l=>l.id>=16&&l.id<=20);
+ assert.equal(lessons.length,5);
+ assert.deepEqual(lessons.map(l=>l.questions.map(q=>q.word)),[['แมว','ปลา','บ้าน','ข้าว','กล้วย'],['แมว','ปลา','ไก่','ม้า','งู'],['บ้าน','เรือ','แก้ว','ช้อน','โต๊ะ'],['ข้าว','กล้วย','แม่','พ่อ','ไข่'],['แมว','แก้ว','แม่','ข้าว','กล้วย']]);
+ const art={แมว:'cat',ปลา:'fish',บ้าน:'house',ข้าว:'rice',กล้วย:'banana',ไก่:'chicken',ม้า:'horse',งู:'snake',เรือ:'boat',แก้ว:'cup',ช้อน:'spoon',โต๊ะ:'table',แม่:'mother',พ่อ:'father',ไข่:'egg'};
+ for(const l of lessons){assert.equal(l.mode,'word-picture');assert.equal(l.questions.length,5);assert.deepEqual(l.questions.map(q=>q.options.length),[2,2,3,3,3]);for(const q of l.questions){assert.equal(q.letter,q.word);assert.equal(q.speech,q.word);assert.equal(q.art,art[q.word]);assert.ok(!q.prompt.includes(q.word));assert.ok(q.options.every(word=>l.questions.some(target=>target.word===word)));}}
+ const introduced=new Set(lessons.slice(0,4).flatMap(l=>l.questions.map(q=>q.word)));for(const q of lessons[4].questions)assert.ok(introduced.has(q.word));
 });
 test('first vowel lesson has three modelled examples before word transfer and correct vowel positions',()=>{
   const l=curriculum.lessons.find(l=>l.id===6);

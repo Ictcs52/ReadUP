@@ -206,3 +206,7 @@ h1,h2,h3,.instruction,.hero h2 { letter-spacing:0; }
  .learner-space .reading-options .letter-option { min-height:76px; padding:6px 18px; font-size:36px; }
  .learner-space.large-text .reading-options .letter-option { font-size:40px; }
 }
+
+.adventure-card.adventure-17,.adventure-card.adventure-20 { --tile:#edf1ff; --tile-line:#d0d9ef; --tile-ink:#455b8a; }
+.adventure-card.adventure-18 { --tile:#fff4da; --tile-line:#e9d395; --tile-ink:#715611; }
+.adventure-card.adventure-19 { --tile:#fff0f4; --tile-line:#f0ccda; --tile-ink:#9d174d; }
