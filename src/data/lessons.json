@@ -56,6 +56,13 @@
       {"letter":"สี","word":"สี","speech":"สอ อี สี","art":"paint","options":["สี","สา","สู"],"prompt":"ประสมแล้ว เลือกคำที่ตรงกัน","blend":{"consonant":"ส","vowel":"ี","model":true}},
       {"letter":"กา","word":"กา","speech":"กอ อา กา","art":"crow","options":["กา","กี","กู"],"prompt":"ก กับสระ อา ประสมเป็นคำใด?","blend":{"consonant":"ก","vowel":"า","model":false}},
       {"letter":"งู","word":"งู","speech":"งอ อู งู","art":"snake","options":["งู","งา","งี"],"prompt":"ง กับสระ อู ประสมเป็นคำใด?","blend":{"consonant":"ง","vowel":"ู","model":false}}
+    ]},
+    {"id":8,"title":"ฟังแล้วเลือกพยางค์","description":"ฟังเสียงคำที่คุ้นเคย แล้วแตะคำที่ได้ยิน","mode":"listen-word","questions":[
+      {"letter":"ตา","word":"ตา","speech":"ตา","art":"eye","options":["ตา","ตี"],"prompt":"ฟัง แล้วเลือกคำที่ได้ยิน"},
+      {"letter":"ปู","word":"ปู","speech":"ปู","art":"crab","options":["ปู","ปา"],"prompt":"ฟัง แล้วเลือกคำที่ได้ยิน"},
+      {"letter":"สี","word":"สี","speech":"สี","art":"paint","options":["สี","สา","สู"],"prompt":"ฟัง แล้วเลือกคำที่ได้ยิน"},
+      {"letter":"กา","word":"กา","speech":"กา","art":"crow","options":["กา","กี","กู"],"prompt":"ฟัง แล้วเลือกคำที่ได้ยิน"},
+      {"letter":"งู","word":"งู","speech":"งู","art":"snake","options":["งู","งา","งี"],"prompt":"ฟัง แล้วเลือกคำที่ได้ยิน"}
     ]}
   ]
 }

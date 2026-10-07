@@ -5,12 +5,12 @@ import { resultCategory, summarize, percent, orderedOptions, csvCell, exportCsv,
 
 const curriculum = JSON.parse(fs.readFileSync(new URL('../src/data/lessons.json', import.meta.url),'utf8'));
 
-test('curriculum has exactly 30 planned lessons, with 7 playable lessons and 35 valid questions', () => {
+test('curriculum has exactly 30 planned lessons, with 8 playable lessons and 40 valid questions', () => {
   assert.equal(curriculum.levels.length,6);
   assert.equal(curriculum.levels.flatMap(l=>l.lessons).length,30);
-  assert.equal(curriculum.lessons.length,7);
-  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,35);
-  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7]);
+  assert.equal(curriculum.lessons.length,8);
+  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,40);
+  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7,8]);
   for(const l of curriculum.lessons) assert.equal(l.title,curriculum.levels[Math.ceil(l.id/5)-1].lessons[(l.id-1)%5]);
   for (const l of curriculum.lessons) for (const q of l.questions) {
     assert.ok(q.options.includes(q.letter));
@@ -24,6 +24,13 @@ test('first vowel lesson has three modelled examples before word transfer and co
   assert.deepEqual(l.questions.map(q=>q.vowelExample),[true,true,true,false,false]);
   assert.deepEqual(l.questions.map(q=>[q.word,q.letter]),[['ตา','า'],['สี','ี'],['ปู','ู'],['ปลา','า'],['หมี','ี']]);
   for(const q of l.questions){assert.deepEqual(q.options,['า','ี','ู']);assert.ok(q.word.includes(q.letter));assert.ok(q.vowelClue.includes(q.word));assert.ok(q.speech);}
+});
+test('listening reuses familiar words, speaks only the target and grows from two choices to three',()=>{
+  const l=curriculum.lessons.find(l=>l.id===8);
+  assert.equal(l.mode,'listen-word');
+  assert.deepEqual(l.questions.map(q=>q.options.length),[2,2,3,3,3]);
+  const familiar=curriculum.lessons.find(l=>l.id===7).questions.map(q=>q.word);
+  for(const q of l.questions){assert.ok(familiar.includes(q.word));assert.equal(q.speech,q.word);assert.equal(q.letter,q.word);assert.ok(!q.prompt.includes(q.word));}
 });
 test('first-time success with a hint is assisted, never independent',()=>{
   assert.equal(resultCategory(0,0),'independent');

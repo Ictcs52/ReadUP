@@ -128,6 +128,12 @@ test('student accounts restrict reads and writes to self and preserve teacher as
     const blendRound={...vowelRound,id:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',lessonId:7,records:blendLesson.questions.map((q,i)=>({questionIndex:i,letter:q.letter,word:q.word,category:'assisted',wrongAttempts:0,hintLevel:1,activeMs:100}))};
     assert.equal((await save(pupil,student,0,blendRound)).rows[0].saved.revision,1);
     assert.deepEqual((await asUser(teacher,'select payload from public.readtech_sessions where lesson_id=7')).rows[0].payload.records.map(r=>r.word),['ตา','ปู','สี','กา','งู']);
+    const listening=curriculum.lessons.find(l=>l.id===8);
+    const listenRound={...blendRound,id:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',lessonId:8,records:listening.questions.map((q,i)=>({questionIndex:i,letter:q.letter,word:q.word,category:'independent',wrongAttempts:0,hintLevel:0,activeMs:100}))};
+    assert.equal((await save(pupil,student,0,listenRound)).rows[0].saved.revision,1);
+    assert.deepEqual((await asUser(teacher,'select payload from public.readtech_sessions where lesson_id=8')).rows[0].payload.records.map(r=>r.word),['ตา','ปู','สี','กา','งู']);
+    assert.equal((await asUser(peer,'select id from public.readtech_sessions where lesson_id=8')).rows.length,0);
+    await assert.rejects(save(teacher,student,0,{...listenRound,id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'}),e=>e.code==='42501');
     assert.equal((await asUser(peer,'select id from public.readtech_sessions where lesson_id=7')).rows.length,0);
     assert.equal((await asUser(peer,'select id from public.readtech_sessions where lesson_id=6')).rows.length,0);
     await assert.rejects(save(teacher,student,0,{...vowelRound,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}),e=>e.code==='42501');
