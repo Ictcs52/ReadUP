@@ -5,12 +5,12 @@ import { resultCategory, summarize, percent, orderedOptions, csvCell, exportCsv,
 
 const curriculum = JSON.parse(fs.readFileSync(new URL('../src/data/lessons.json', import.meta.url),'utf8'));
 
-test('curriculum has exactly 30 planned lessons, with 8 playable lessons and 40 valid questions', () => {
+test('curriculum has exactly 30 planned lessons, with 10 playable lessons and 50 valid questions', () => {
   assert.equal(curriculum.levels.length,6);
   assert.equal(curriculum.levels.flatMap(l=>l.lessons).length,30);
-  assert.equal(curriculum.lessons.length,8);
-  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,40);
-  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7,8]);
+  assert.equal(curriculum.lessons.length,10);
+  assert.equal(curriculum.lessons.flatMap(l=>l.questions).length,50);
+  assert.deepEqual(curriculum.lessons.map(l=>l.id),[1,2,3,4,5,6,7,8,9,10]);
   for(const l of curriculum.lessons) assert.equal(l.title,curriculum.levels[Math.ceil(l.id/5)-1].lessons[(l.id-1)%5]);
   for (const l of curriculum.lessons) for (const q of l.questions) {
     assert.ok(q.options.includes(q.letter));
@@ -31,6 +31,17 @@ test('listening reuses familiar words, speaks only the target and grows from two
   assert.deepEqual(l.questions.map(q=>q.options.length),[2,2,3,3,3]);
   const familiar=curriculum.lessons.find(l=>l.id===7).questions.map(q=>q.word);
   for(const q of l.questions){assert.ok(familiar.includes(q.word));assert.equal(q.speech,q.word);assert.equal(q.letter,q.word);assert.ok(!q.prompt.includes(q.word));}
+});
+test('vowel changes retain the consonant, change exactly one vowel and introduce meaningful open words',()=>{
+ const l=curriculum.lessons.find(l=>l.id===9);
+ assert.equal(l.mode,'change-vowel');
+ assert.deepEqual(l.questions.map(q=>[q.previousWord,q.word]),[['ตา','ตี'],['ตี','ตา'],['ปู','ปี'],['ปี','ปู'],['ดู','ดี']]);
+ for(const q of l.questions){assert.equal(q.previousWord[0],q.blend.consonant);assert.equal(q.blend.consonant+q.blend.vowel,q.word);assert.notEqual(q.previousWord,q.word);assert.equal(q.letter,q.word);assert.equal(q.blend.model,false);}
+});
+test('open-word picture practice uses familiar consonant plus vowel words with semantic choices',()=>{
+ const l=curriculum.lessons.find(l=>l.id===10);
+ assert.equal(l.mode,'word-picture');assert.equal(l.questions.length,5);
+ for(const q of l.questions){assert.equal(q.speech,q.word);assert.equal(q.letter,q.word);assert.equal(q.word.length,2);assert.ok(['า','ี','ู'].includes(q.word[1]));assert.ok(!q.prompt.includes(q.word));assert.ok(q.options.every(w=>w.length===2));}
 });
 test('first-time success with a hint is assisted, never independent',()=>{
   assert.equal(resultCategory(0,0),'independent');

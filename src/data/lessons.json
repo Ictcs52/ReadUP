@@ -63,6 +63,20 @@
       {"letter":"สี","word":"สี","speech":"สี","art":"paint","options":["สี","สา","สู"],"prompt":"ฟัง แล้วเลือกคำที่ได้ยิน"},
       {"letter":"กา","word":"กา","speech":"กา","art":"crow","options":["กา","กี","กู"],"prompt":"ฟัง แล้วเลือกคำที่ได้ยิน"},
       {"letter":"งู","word":"งู","speech":"งู","art":"snake","options":["งู","งา","งี"],"prompt":"ฟัง แล้วเลือกคำที่ได้ยิน"}
+    ]},
+    {"id":9,"title":"เปลี่ยนสระเปลี่ยนเสียง","description":"ใช้พยัญชนะตัวเดิม เปลี่ยนสระ แล้วอ่านคำใหม่","mode":"change-vowel","questions":[
+      {"letter":"ตี","word":"ตี","speech":"ตอ อี ตี","art":"eye","options":["ตา","ตี"],"prompt":"เปลี่ยนสระ แล้วเลือกคำใหม่","previousWord":"ตา","blend":{"consonant":"ต","vowel":"ี","model":false}},
+      {"letter":"ตา","word":"ตา","speech":"ตอ อา ตา","art":"eye","options":["ตี","ตา"],"prompt":"เปลี่ยนสระ แล้วเลือกคำใหม่","previousWord":"ตี","blend":{"consonant":"ต","vowel":"า","model":false}},
+      {"letter":"ปี","word":"ปี","speech":"ปอ อี ปี","art":"crab","options":["ปู","ปา","ปี"],"prompt":"เปลี่ยนสระ แล้วเลือกคำใหม่","previousWord":"ปู","blend":{"consonant":"ป","vowel":"ี","model":false}},
+      {"letter":"ปู","word":"ปู","speech":"ปอ อู ปู","art":"crab","options":["ปี","ปู","ปา"],"prompt":"เปลี่ยนสระ แล้วเลือกคำใหม่","previousWord":"ปี","blend":{"consonant":"ป","vowel":"ู","model":false}},
+      {"letter":"ดี","word":"ดี","speech":"ดอ อี ดี","art":"eye","options":["ดู","ดา","ดี"],"prompt":"เปลี่ยนสระ แล้วเลือกคำใหม่","previousWord":"ดู","blend":{"consonant":"ด","vowel":"ี","model":false}}
+    ]},
+    {"id":10,"title":"คำไม่มีตัวสะกด","description":"ดูภาพ ฟัง แล้วเลือกคำที่ไม่มีตัวสะกด","mode":"word-picture","questions":[
+      {"letter":"ตา","word":"ตา","speech":"ตา","art":"eye","options":["ตา","ปู"],"prompt":"ดูภาพ แล้วเลือกคำที่ตรงกัน"},
+      {"letter":"ปู","word":"ปู","speech":"ปู","art":"crab","options":["ปู","สี"],"prompt":"ดูภาพ แล้วเลือกคำที่ตรงกัน"},
+      {"letter":"สี","word":"สี","speech":"สี","art":"paint","options":["สี","กา","งู"],"prompt":"ดูภาพ แล้วเลือกคำที่ตรงกัน"},
+      {"letter":"กา","word":"กา","speech":"กา","art":"crow","options":["กา","ตา","ปู"],"prompt":"ดูภาพ แล้วเลือกคำที่ตรงกัน"},
+      {"letter":"งู","word":"งู","speech":"งู","art":"snake","options":["งู","สี","กา"],"prompt":"ดูภาพ แล้วเลือกคำที่ตรงกัน"}
     ]}
   ]
 }

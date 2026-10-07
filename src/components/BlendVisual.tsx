@@ -6,7 +6,7 @@ export function BlendVisual({ question, revealed }: { question: Question; reveal
   const blend=question.blend!;
   const showWord=blend.model || revealed;
   return <div className="blend-visual">
-    <Illustration kind={question.art} label={question.word} className="question-art"/>
+    {question.previousWord ? <div className="vowel-change"><small>คำเดิม</small><strong>{question.previousWord}</strong><p>เปลี่ยนสระเป็น <b>{vowelName(blend.vowel)}</b></p></div> : <Illustration kind={question.art} label={question.word} className="question-art"/>}
     <div className="blend-parts" aria-label={`${blend.consonant} กับสระ ${vowelName(blend.vowel)}${showWord?` ประสมเป็น ${question.word}`:''}`}>
       <div><small>พยัญชนะ</small><strong>{blend.consonant}</strong></div>
       <span aria-hidden="true">+</span>

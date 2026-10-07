@@ -1,4 +1,10 @@
 /* Friendly, quiet surfaces for existing learner activities. */
+.vowel-change { margin:0 auto 16px; padding:12px; max-width:360px; border-radius:18px; background:#edf1ff; color:#34344e; display:grid; justify-items:center; gap:3px; }
+.vowel-change small { font-size:14px; color:#455b8a; }
+.vowel-change>strong { font-size:44px; line-height:1.7; }
+.vowel-change p { margin:0; font-size:18px; }
+.adventure-card.adventure-9 { --tile:#edf1ff; --tile-line:#d0d9ef; --tile-ink:#455b8a; }
+.adventure-card.adventure-10 { --tile:#fff4da; --tile-line:#e9d395; --tile-ink:#715611; }
 .blend-visual { width:100%; padding:10px 12px 18px; }
 .learner-space .blend-visual .question-art { display:block; width:180px; height:135px; margin:0 auto 12px; }
 .blend-parts { display:grid; grid-template-columns:minmax(0,1fr) 15px minmax(0,1fr) 15px minmax(0,1fr); align-items:center; gap:8px; max-width:500px; margin:0 auto; }
