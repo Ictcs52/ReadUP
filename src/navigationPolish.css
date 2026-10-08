@@ -1,0 +1,31 @@
+.app { --sidebar-width:246px; }
+.app .sidebar { width:var(--sidebar-width); padding:0 18px 18px; }
+.app .workspace:not(.focused) { margin-left:var(--sidebar-width); }
+.sidebar .brand { min-height:85px; height:85px; flex-shrink:0; width:calc(100% + 36px); margin:0 -18px; padding:0 22px; border-bottom:1px solid var(--line); }
+.sidebar .sidebar-line,.sidebar .nav-label { display:none; }
+.sidebar nav { margin-top:18px; }
+.sidebar .about-link { display:flex; align-items:center; gap:12px; width:100%; }
+.sidebar .gentle-note { padding:14px; text-align:center; margin-bottom:12px; }
+.sidebar .gentle-note p { margin-top:4px; }
+.topbar-title { display:flex; align-items:center; gap:16px; min-width:0; }
+.sidebar-toggle { min-width:44px; min-height:44px; display:grid; place-items:center; border:1px solid var(--line); border-radius:14px; color:var(--pink); background:#fff; }
+.sidebar-toggle:hover { background:#fff1f6; }
+.menu-collapsed { --sidebar-width:84px; }
+.menu-collapsed .sidebar { padding-inline:12px; }
+.menu-collapsed .sidebar .brand { width:calc(100% + 24px); margin-inline:-12px; padding:0; justify-content:center; }
+.menu-collapsed .sidebar .brand-text,.menu-collapsed .sidebar .nav-item span,.menu-collapsed .sidebar .nav-item i,.menu-collapsed .sidebar .gentle-note,.menu-collapsed .sidebar .about-link span { display:none; }
+.menu-collapsed .sidebar .nav-item,.menu-collapsed .sidebar .about-link { justify-content:center; padding:13px 8px; }
+.learner-space .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.learner-space .hero-copy .primary { margin-top:18px; }
+.learner-space .hero { min-height:320px; }
+.learner-space .page-heading { margin-bottom:18px; }
+.learner-space .lesson-card p { color:#665d64; line-height:1.7; }
+@media(min-width:951px) { .app .topbar { height:85px; } }
+@media(min-width:951px) and (max-width:1190px) { .app:not(.menu-collapsed) { --sidebar-width:218px; } .sidebar .brand { gap:9px; font-size:22px; } }
+@media(max-width:950px) { .app .workspace:not(.focused) { margin-left:0; } .sidebar-toggle { display:none; } }
+@media(max-width:650px) { .learner-space .hero { min-height:0; } .learner-space .hero-copy .primary { margin-top:14px; } .learner-space .stats-grid { gap:12px; } }
+@media(max-width:700px) {
+ .app .focused .topbar:has(.teacher-chip) { flex-wrap:wrap; height:auto; gap:4px; }
+ .app .focused .topbar:has(.teacher-chip) .topbar-right { width:100%; gap:8px; flex-shrink:0; }
+ .app .focused .topbar .teacher-chip { max-width:calc(100% - 150px); }
+}

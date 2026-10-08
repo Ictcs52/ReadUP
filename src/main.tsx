@@ -6,6 +6,7 @@ import './styles.css';
 import './learnerStyles.css';
 import './visualPolish.css';
 import './sentenceStyles.css';
+import './navigationPolish.css';
 import App from './App';
 
 createRoot(document.getElementById('root')!).render(<App />);

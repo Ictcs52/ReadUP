@@ -1,4 +1,5 @@
 const paths: Record<string, React.ReactNode> = {
+  menu: <path d="M4 6h16M4 12h16M4 18h16"/>,
   trophy: <><path d="M7 3h10v6a5 5 0 0 1-10 0V3ZM7 5H3v3a4 4 0 0 0 4 4m10-7h4v3a4 4 0 0 1-4 4M12 14v5m-5 2h10m-7-2h4"/></>,
   coin: <><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="6"/><path d="m12 8 1.2 2.6 2.8.4-2 2 .5 2.8-2.5-1.3-2.5 1.3.5-2.8-2-2 2.8-.4Z"/></>,
   flame: <path d="M12 2c2 6 7 8 7 13a7 7 0 0 1-14 0c0-3 2-6 4-8 0 3 1 4 2 5 2-3 2-6 1-10Z"/>,
