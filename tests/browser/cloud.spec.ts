@@ -885,3 +885,16 @@ test('lost assessment creation and phase-save responses can be retried without d
  const panel=page.getByRole('region',{name:'ประเมินก่อน–หลังของ นักอ่านหนึ่ง',exact:true});await panel.getByRole('button',{name:'สร้างชุดประเมิน',exact:true}).click();let form=panel.getByRole('form',{name:'สร้างชุดประเมิน',exact:true});await form.getByLabel('ชื่อชุดประเมิน',{exact:true}).fill('ชุด A');for(let i=1;i<=5;i++){await form.getByLabel(`คะแนนเต็มด้านที่ ${i}`,{exact:true}).fill('10');await form.getByLabel(`วิธีประเมินด้านที่ ${i}`,{exact:true}).fill('สิบข้อ');}await form.getByRole('button',{name:'บันทึกเกณฑ์และสร้างชุด',exact:true}).click();await expect(form.getByRole('alert')).toBeVisible();await form.getByRole('button',{name:'บันทึกเกณฑ์และสร้างชุด',exact:true}).click();await expect(form).toHaveCount(0);expect(backend.preposts.size).toBe(1);
  await panel.getByRole('button',{name:'บันทึกผลก่อนฝึก',exact:true}).click();form=panel.getByRole('form',{name:'ก่อนฝึก (Pre-test)',exact:true});await fillPhase(form);await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form.getByRole('alert')).toBeVisible();await form.getByRole('button',{name:'บันทึกผลประเมิน',exact:true}).click();await expect(form).toHaveCount(0);expect([...backend.preposts.values()][0].revision).toBe(2);
 });
+test('teacher menu shows the signed-in teacher before selection, in reports and after reload on mobile',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);await login(page);
+ const chip=page.locator('.topbar .teacher-chip');await expect(chip).toHaveText('ครูหนึ่ง');await expect(chip).toHaveAccessibleName('บัญชีครู: ครูหนึ่ง');await expect(page.locator('.topbar')).not.toContainText('ตัวอย่างบทเรียนครู');
+ await selectFirst(page);await expect(chip).toHaveText('ครูหนึ่ง');await expect(page.getByRole('heading',{name:'รายงานผู้เรียน',exact:true})).toBeVisible();await expect(page.locator('.topbar')).not.toContainText('นักอ่านหนึ่ง');
+ await page.reload();await expect(chip).toHaveText('ครูหนึ่ง');
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});await expect(chip).toBeVisible();await expect(page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+ await page.screenshot({path:'test-results/teacher-menu-mobile.png',fullPage:true});
+ await chip.click();await expect(page.getByRole('heading',{name:'ผู้เรียน',exact:true})).toBeVisible();
+});
+
+test('teacher menu identity changes with the logged-in account instead of the selected learner',async({page,context})=>{
+ const backend=mockBackend();await backend.install(context);await login(page);await expect(page.locator('.teacher-chip')).toHaveText('ครูหนึ่ง');await page.locator('.topbar').getByRole('button',{name:'ออกจากระบบ',exact:true}).click();await login(page,'other@example.test');await expect(page.locator('.teacher-chip')).toHaveText('ครูสอง');await expect(page.locator('.topbar')).not.toContainText('ครูหนึ่ง');
+});
