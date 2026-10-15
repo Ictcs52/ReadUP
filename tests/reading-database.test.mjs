@@ -22,7 +22,7 @@ test('actual reading records require an active owning teacher, preserve identity
     await assert.rejects(asUser(teacher,"update public.readtech_reading_assessments set confidence='invented' where id=$1",[record]),error=>error.code==='23514');
     await assert.rejects(asUser(teacher,"update public.readtech_reading_assessments set participation='invented' where id=$1",[record]),error=>error.code==='23514');
     assert.equal((await asUser(teacher,'select * from public.readtech_reading_assessments')).rows.length,1);
-    for(const uid of [other,pupil])assert.equal((await asUser(uid,'select * from public.readtech_reading_assessments')).rows.length,0);
+    assert.equal((await asUser(other,'select * from public.readtech_reading_assessments')).rows.length,1, 'approved teachers can read shared reports');assert.equal((await asUser(pupil,'select * from public.readtech_reading_assessments')).rows.length,0);
     await assert.rejects(insert(pupil,'77777777-7777-4777-8777-777777777777'),error=>error.code==='42501');
     await assert.rejects(insert(other,'77777777-7777-4777-8777-777777777777'),error=>error.code==='42501');
     await assert.rejects(insert(teacher,'77777777-7777-4777-8777-777777777777',foreign),error=>error.code==='42501');

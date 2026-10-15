@@ -643,7 +643,7 @@ test('large teacher roster searches and combines filters across pages on desktop
  // Include a legacy account without a class or independent login.
  backend.students[backend.students.length-1].login_id='';backend.students[backend.students.length-1].class_name='';
  await backend.install(context);await login(page);
- const roster=page.getByRole('region',{name:'ผู้เรียนของฉัน 125 คน',exact:true});
+ const roster=page.getByRole('region',{name:'ผู้เรียนทั้งหมด 125 คน',exact:true});
  await expect(roster).toBeVisible();await expect(roster.locator('.roster-row')).toHaveCount(10);
  await expect(page.getByLabel('เลขประจำตัว (4 หลัก)',{exact:true})).toHaveCount(0);
  await expect(roster.getByRole('status')).toContainText('แสดง 1–10');

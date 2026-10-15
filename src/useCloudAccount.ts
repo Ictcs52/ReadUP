@@ -53,7 +53,7 @@ export function useCloudAccount() {
         if (alive) { setTeacher(null); setLearner(own.data); setStudents([]); setStudent(own.data); if (!own.data) setMessage('บัญชีนี้ยังไม่ได้รับสิทธิ์ครู หรือบัญชีนักเรียนถูกพักใช้งาน ให้ติดต่อครูผู้ดูแล'); }
         return;
       }
-      const result = await client.from('readtech_students').select(studentColumns).eq('teacher_id', user.id).order('created_at');
+      const result = await client.from('readtech_students').select(studentColumns).order('created_at');
       if (result.error) throw result.error;
       if (alive) {
         const list = result.data as Student[];
@@ -83,14 +83,14 @@ export function useCloudAccount() {
     setStudents(list => [...list, result.student]); return result;
   }
   async function studentAccess(value: Student, action: 'register' | 'reset' | 'disable' | 'enable') {
-    if (!client || !teacher) throw new Error('กรุณาเข้าสู่ระบบครูก่อน');
+    if (!client || !teacher || value.teacher_id !== teacher.id) throw new Error('ให้ครูผู้สร้างจัดการบัญชีนี้');
     const result = await manageStudentLogin(client, { action, studentId: value.id });
     setStudents(list => list.map(s => s.id === value.id ? result.student : s));
     setStudent(s => s?.id === value.id ? result.student : s);
     return result;
   }
   async function editStudent(value: Student, code: string, name: string, className: string) {
-    if (!client || !teacher || !students.some(s=>s.id===value.id)) throw new Error('ไม่มีสิทธิ์แก้ข้อมูลผู้เรียนนี้');
+    if (!client || !teacher || value.teacher_id !== teacher.id || !students.some(s=>s.id===value.id)) throw new Error('ไม่มีสิทธิ์แก้ข้อมูลผู้เรียนนี้');
     const result = await manageStudentLogin(client, { action: 'edit', studentId: value.id, code, name, className,
       expected: { code: value.code, name: value.display_name, className: value.class_name || '' } });
     setStudents(list=>list.map(s=>s.id===value.id?result.student:s));

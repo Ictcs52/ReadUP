@@ -22,6 +22,7 @@ function Accuracy({ correct, incorrect }: { correct: number; incorrect: number }
 }
 
 export function ReadingAssessmentPanel({ client, student, teacherId }: { client: SupabaseClient; student: Student; teacherId: string }) {
+  const readOnly = student.teacher_id !== teacherId;
   const [rows, setRows] = useState<ReadingAssessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -54,7 +55,7 @@ export function ReadingAssessmentPanel({ client, student, teacherId }: { client:
   }
   function close() { setOpened(false);setEditing(null);setError('');addButton.current?.focus(); }
   async function save(event: FormEvent) {
-    event.preventDefault();if(submitting.current)return;
+    event.preventDefault();if(readOnly||submitting.current)return;
     let value: ReadingInput;
     try{value=parseReadingDraft(draft) as ReadingInput;}catch(err){setError((err as Error).message);return;}
     submitting.current=true;setSaving(true);setError('');setMessage('');
@@ -71,7 +72,7 @@ export function ReadingAssessmentPanel({ client, student, teacherId }: { client:
   const field=(key: keyof typeof draft,value:string)=>setDraft(previous=>({...previous,[key]:value}));
   const preview = /^\d+$/.test(draft.correct_words)&&/^\d+$/.test(draft.incorrect_words);
   return <section className="reading-panel" aria-label={`บันทึกการอ่านของ ${student.display_name}`}>
-    <div className="reading-panel-heading"><div><h2>บันทึกการอ่านโดยครู</h2><p>ผลการอ่านจริงของ {student.display_name} · แยกจากคะแนนกิจกรรม</p></div><button ref={addButton} className="primary" disabled={loading||saving||Boolean(loadError)||opened} onClick={()=>open()}>เพิ่มบันทึกการอ่าน<Icon name="book" size={18}/></button></div>
+    <div className="reading-panel-heading"><div><h2>บันทึกการอ่านโดยครู</h2><p>ผลการอ่านจริงของ {student.display_name} · แยกจากคะแนนกิจกรรม</p></div><button ref={addButton} className="primary" disabled={readOnly||loading||saving||Boolean(loadError)||opened} onClick={()=>open()}>เพิ่มบันทึกการอ่าน<Icon name="book" size={18}/></button></div>
     <p className="reading-guidance">เป้าหมายเบื้องต้น: อ่านคำถูกอย่างน้อย 80% ใช้ติดตามผลครั้งนี้ตามที่ครูบันทึก ไม่ใช่ผลรับรองการเรียนรู้หรือคะแนนก่อน–หลัง</p>
     {loading && <p role="status">กำลังโหลดบันทึกการอ่าน…</p>}
     {loadError && <div className="reading-error"><p role="alert">{loadError}</p><button className="secondary" onClick={()=>setRefresh(n=>n+1)}>ลองโหลดอีกครั้ง</button></div>}
@@ -100,7 +101,7 @@ export function ReadingAssessmentPanel({ client, student, teacherId }: { client:
       <p role="status" className="reading-field-help">แสดง {filtered.length} จาก {rows.length} บันทึก · วันที่ตามอุปกรณ์นี้</p>
       {!invalidDates && <ReadingProgress rows={filtered}/>}
       <div className="reading-history-heading"><h3>ประวัติการอ่าน {filtered.length} ครั้ง</h3><button className="text-button" disabled={!filtered.length||invalidDates||loading||Boolean(loadError)} onClick={exportRows}>ส่งออกบันทึกการอ่าน CSV<Icon name="download" size={16}/></button></div>
-      <ol className="reading-history">{filtered.slice(0,visible).map(row=><li key={row.id}><article><div className="reading-record-heading"><time dateTime={row.assessed_at}>{new Date(row.assessed_at).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'})}</time><button className="text-button" disabled={opened||saving||loading||Boolean(loadError)} onClick={()=>open(row)} aria-label={`แก้ไขบันทึกการอ่าน ${new Date(row.assessed_at).toLocaleString('th-TH')}`}>แก้ไข</button></div><Accuracy correct={row.correct_words} incorrect={row.incorrect_words}/><p className="reading-field-help">ความช่วยเหลือ: {READING_HELP[row.help_level]}</p><details><summary>รายละเอียดการอ่าน</summary><dl className="reading-record-details"><div><dt>อ่านถูก / อ่านผิด</dt><dd>{row.correct_words} / {row.incorrect_words} คำ</dd></div><div><dt>สลับตัวอักษร</dt><dd>{row.letter_swaps} ครั้ง</dd></div><div><dt>อ่านข้าม</dt><dd>{row.skipped_words} คำ</dd></div><div><dt>หยุดกลางคัน</dt><dd>{row.stops} ครั้ง</dd></div><div><dt>เวลาอ่าน</dt><dd>{row.reading_seconds===null?'ไม่ได้จับเวลา':`${row.reading_seconds} วินาที`}</dd></div><div><dt>ความช่วยเหลือ</dt><dd>{READING_HELP[row.help_level]}</dd></div><div><dt>การมีส่วนร่วม</dt><dd>{row.participation ? READING_PARTICIPATION[row.participation] : 'ยังไม่ได้สังเกต'}</dd></div><div><dt>ความมั่นใจ</dt><dd>{row.confidence ? READING_CONFIDENCE[row.confidence] : 'ยังไม่ได้สังเกต'}</dd></div></dl>{row.reading_text && <p>คำหรือประโยค: {row.reading_text}</p>}{row.note && <p>หมายเหตุ: {row.note}</p>}</details></article></li>)}</ol>
+      <ol className="reading-history">{filtered.slice(0,visible).map(row=><li key={row.id}><article><div className="reading-record-heading"><time dateTime={row.assessed_at}>{new Date(row.assessed_at).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'})}</time><button className="text-button" disabled={readOnly||opened||saving||loading||Boolean(loadError)} onClick={()=>open(row)} aria-label={`แก้ไขบันทึกการอ่าน ${new Date(row.assessed_at).toLocaleString('th-TH')}`}>แก้ไข</button></div><Accuracy correct={row.correct_words} incorrect={row.incorrect_words}/><p className="reading-field-help">ความช่วยเหลือ: {READING_HELP[row.help_level]}</p><details><summary>รายละเอียดการอ่าน</summary><dl className="reading-record-details"><div><dt>อ่านถูก / อ่านผิด</dt><dd>{row.correct_words} / {row.incorrect_words} คำ</dd></div><div><dt>สลับตัวอักษร</dt><dd>{row.letter_swaps} ครั้ง</dd></div><div><dt>อ่านข้าม</dt><dd>{row.skipped_words} คำ</dd></div><div><dt>หยุดกลางคัน</dt><dd>{row.stops} ครั้ง</dd></div><div><dt>เวลาอ่าน</dt><dd>{row.reading_seconds===null?'ไม่ได้จับเวลา':`${row.reading_seconds} วินาที`}</dd></div><div><dt>ความช่วยเหลือ</dt><dd>{READING_HELP[row.help_level]}</dd></div><div><dt>การมีส่วนร่วม</dt><dd>{row.participation ? READING_PARTICIPATION[row.participation] : 'ยังไม่ได้สังเกต'}</dd></div><div><dt>ความมั่นใจ</dt><dd>{row.confidence ? READING_CONFIDENCE[row.confidence] : 'ยังไม่ได้สังเกต'}</dd></div></dl>{row.reading_text && <p>คำหรือประโยค: {row.reading_text}</p>}{row.note && <p>หมายเหตุ: {row.note}</p>}</details></article></li>)}</ol>
       {filtered.length>visible && <button className="text-button" onClick={()=>setVisible(n=>n+10)}>ดูบันทึกเพิ่มเติม ({filtered.length-visible} ครั้ง)</button>}
     </>}
   </section>;
