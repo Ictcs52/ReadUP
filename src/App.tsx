@@ -313,7 +313,7 @@ export default function App() {
           </section>
         </>}
 
-        {page === 'intro' && <ConsonantIntro settings={data.settings} onBack={()=>go('lessons')} onStart={canPractice?()=>start(1):undefined}/>}
+        {page === 'intro' && <ConsonantIntro settings={data.settings} onBack={()=>go('lessons')}/>}
         {page === 'exercise' && canPractice && current && lesson && question && <div className="exercise-wrap">
           <div className="exercise-heading"><div><span className="eyebrow pink">บทที่ {lesson.id} · {curriculum.levels[lessonLevel(lesson.id)-1].title}</span><h1 tabIndex={-1}>{lesson.title}</h1></div><span className="pill">ข้อ {current.index+1} จาก {current.questionIndices.length}</span></div>
           <div className="progress-track" role="progressbar" aria-label="กิจกรรมที่ทำแล้ว" aria-valuemin={0} aria-valuemax={current.questionIndices.length} aria-valuenow={current.index + Number(current.answered)}><span style={{width: `${(current.index + Number(current.answered))/current.questionIndices.length*100}%`}}/></div>
